@@ -1,0 +1,10 @@
+{
+  "description": "Create and refine Egyptian Arabic lyrics, analyze audio, explore music, and manage voice conversion and stem separation in one creative workspace.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}

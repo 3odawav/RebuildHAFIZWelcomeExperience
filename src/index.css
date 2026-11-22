@@ -1,0 +1,16 @@
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap');
+@import 'tailwindcss';
+
+@theme {
+  --breakpoint-md: 50rem;
+}
+@keyframes breathe {
+  0%, 100% { transform: translateY(0) rotate(-.35deg); }
+  50% { transform: translateY(-7px) rotate(.35deg); }
+}
+@keyframes orbit {
+  to { transform: rotate(360deg); }
+}
+@keyframes rain {
+  to { transform: translateY(650px); }
+}
