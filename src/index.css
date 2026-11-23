@@ -1,16 +1,97 @@
-@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&family=Cairo:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap');
 @import 'tailwindcss';
 
 @theme {
   --breakpoint-md: 50rem;
+  --font-ui-ltr: 'Segoe UI Variable', 'Segoe UI', 'Outfit', system-ui, sans-serif;
+  --font-ui-rtl: 'Cairo', 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
+  --text-win-title: 1.75rem;
+  --text-win-heading: 1.4375rem;
+  --text-win-section: 1.125rem;
+  --text-win-body: 0.9375rem;
+  --text-win-button: 0.875rem;
+  --text-win-label: 0.84375rem;
+  --text-win-caption: 0.8125rem;
+  --text-win-editor: 1.0625rem;
 }
+
+@layer base {
+  html {
+    font-family: var(--font-ui-ltr);
+  }
+  [dir='rtl'] {
+    font-family: var(--font-ui-rtl);
+  }
+}
+
 @keyframes breathe {
   0%, 100% { transform: translateY(0) rotate(-.35deg); }
   50% { transform: translateY(-7px) rotate(.35deg); }
 }
+
 @keyframes orbit {
   to { transform: rotate(360deg); }
 }
+
 @keyframes rain {
   to { transform: translateY(650px); }
+}
+
+@keyframes float-drift-a {
+  0%, 100% {
+    transform: translate(-50%, -50%) translate3d(0px, 0px, 0) rotate(var(--rot, 0deg)) scale(0.96);
+  }
+  33% {
+    transform: translate(-50%, -50%) translate3d(22px, -30px, 0) rotate(calc(var(--rot, 0deg) + 7deg)) scale(1.05);
+  }
+  66% {
+    transform: translate(-50%, -50%) translate3d(-16px, -14px, 0) rotate(calc(var(--rot, 0deg) - 5deg)) scale(1.01);
+  }
+}
+
+@keyframes float-drift-b {
+  0%, 100% {
+    transform: translate(-50%, -50%) translate3d(0px, 0px, 0) rotate(var(--rot, 0deg)) scale(1.02);
+  }
+  33% {
+    transform: translate(-50%, -50%) translate3d(-24px, 24px, 0) rotate(calc(var(--rot, 0deg) - 8deg)) scale(0.94);
+  }
+  66% {
+    transform: translate(-50%, -50%) translate3d(18px, -22px, 0) rotate(calc(var(--rot, 0deg) + 6deg)) scale(1.06);
+  }
+}
+
+@keyframes float-tashkeel {
+  0%, 100% {
+    transform: translate(-50%, -50%) translate3d(0px, 0px, 0) rotate(var(--rot, 0deg)) scale(0.92);
+  }
+  25% {
+    transform: translate(-50%, -50%) translate3d(18px, -24px, 0) rotate(calc(var(--rot, 0deg) + 12deg)) scale(1.1);
+  }
+  55% {
+    transform: translate(-50%, -50%) translate3d(-14px, -34px, 0) rotate(calc(var(--rot, 0deg) - 10deg)) scale(1.04);
+  }
+  80% {
+    transform: translate(-50%, -50%) translate3d(-20px, 12px, 0) rotate(calc(var(--rot, 0deg) + 6deg)) scale(0.96);
+  }
+}
+
+.calligraphy-drift-a {
+  animation: float-drift-a var(--dur, 9s) ease-in-out var(--delay, 0s) infinite;
+}
+
+.calligraphy-drift-b {
+  animation: float-drift-b var(--dur, 10s) ease-in-out var(--delay, 0s) infinite;
+}
+
+.calligraphy-tashkeel {
+  animation: float-tashkeel var(--dur, 7s) ease-in-out var(--delay, 0s) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .calligraphy-drift-a,
+  .calligraphy-drift-b,
+  .calligraphy-tashkeel {
+    animation: none;
+  }
 }
