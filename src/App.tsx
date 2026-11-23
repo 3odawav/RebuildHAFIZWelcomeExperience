@@ -17,6 +17,13 @@ import {
 } from './contracts/orchestrator'
 import { getTranslations, type AppTranslations, type UiLanguage, type VoiceLanguage } from './i18n/translations'
 import { resolveHafizIntent, type AvatarState } from './utils/avatarAnimation'
+import {
+  DEFAULT_STORAGE_CONFIG,
+  getExecutionProfileDefaults,
+  type ExecutionProfile,
+  type ModelSetupMode,
+  type UiThemePreset,
+} from './utils/storageConfig'
 
 type IconName = 'home' | 'pen' | 'audio' | 'mic' | 'settings' | 'folder' | 'download' | 'arrow' | 'spark' | 'layers' | 'globe' | 'close' | 'play'
 function Icon({ name, className = '' }: { name: IconName; className?: string }) {
@@ -55,9 +62,9 @@ const screens: { path: string; icon: IconName; group: string }[] = [
   { path: 'projects', icon: 'folder', group: '' },
 ]
 
-const button = 'inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-white/15 bg-white/5 px-4 text-sm transition hover:border-cyan-400/60 hover:bg-cyan-400/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 disabled:cursor-not-allowed disabled:opacity-60'
-const field = 'w-full rounded-xl border border-slate-700 bg-black/20 p-3.5 text-sm outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400'
-const panel = 'rounded-2xl border border-slate-700/70 bg-[#0b1623]/90'
+const button = 'hafiz-btn inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-white/15 bg-white/5 px-4 text-sm transition hover:border-cyan-400/60 hover:bg-cyan-400/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 disabled:cursor-not-allowed disabled:opacity-60'
+const field = 'hafiz-field w-full rounded-xl border border-slate-700 bg-black/20 p-3.5 text-sm outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400'
+const panel = 'hafiz-panel rounded-2xl border border-slate-700/70 bg-[#0b1623]/90'
 
 function load<T,>(key: string, fallback: T): T { try { return JSON.parse(localStorage.getItem(key) || 'null') ?? fallback } catch { return fallback } }
 function persist(key: string, value: unknown) { try { localStorage.setItem(key, JSON.stringify(value)) } catch { /* storage unavailable */ } }
@@ -213,9 +220,15 @@ function HafizAvatarStage({
 }
 
 export default function App() {
+  const [startupMode, setStartupMode] = useState<'avatar_first' | 'direct_studio'>(() => {
+    const saved = load<string>('hafiz-startup-mode', 'avatar_first')
+    return saved === 'direct_studio' ? 'direct_studio' : 'avatar_first'
+  })
   const [route, setRoute] = useState(() => {
     if (new URLSearchParams(location.search).get('autostart') === '1') return 'studio/editor'
-    return location.hash.slice(1) || 'welcome'
+    const hash = location.hash.slice(1)
+    if (hash) return hash
+    return load<string>('hafiz-startup-mode', 'avatar_first') === 'direct_studio' ? 'studio/editor' : 'welcome'
   })
   const [language, setLanguage] = useState<UiLanguage>(() => {
     const saved = load<string>('hafiz-language', 'ar')
@@ -225,10 +238,19 @@ export default function App() {
     const saved = load<string>('hafiz-voice-lang', 'ar-EG')
     return saved === 'en-US' ? 'en-US' : 'ar-EG'
   })
+  const [themePreset, setThemePreset] = useState<UiThemePreset>(() => {
+    const saved = load<string>('hafiz-theme-preset', 'midnight_blue')
+    return saved === 'graphite_gold' || saved === 'light_studio' ? saved : 'midnight_blue'
+  })
   const [uiScale, setUiScale] = useState<number>(() => {
     const saved = load<number>('hafiz-ui-scale', 100)
     return saved === 112 || saved === 125 ? saved : 100
   })
+  const [workspaceDensity, setWorkspaceDensity] = useState<'comfortable' | 'compact'>(() =>
+    load<string>('hafiz-workspace-density', 'comfortable') === 'compact' ? 'compact' : 'comfortable',
+  )
+  const [reduceMotion, setReduceMotion] = useState<boolean>(() => load('hafiz-reduce-motion', false))
+  const [autosaveSec, setAutosaveSec] = useState<number>(() => load('hafiz-autosave-sec', 5))
   const [dockSide, setDockSide] = useState<DockSide>(() => load('hafiz-dock-side', language === 'ar' ? 'left' : 'right'))
   const [text, setText] = useState(() => load('hafiz-draft', ''))
   const [projects, setProjects] = useState<{ id: number; text: string; title: string }[]>(() => load('hafiz-projects', []))
@@ -243,13 +265,55 @@ export default function App() {
   const [reference, setReference] = useState({ url: '', name: '' })
   const [settingsTab, setSettingsTab] = useState<SettingsTabId>(() => load('hafiz-settings-tab', 'general'))
   const [speechEnabled, setSpeechEnabled] = useState(() => load('hafiz-speech', true))
+  const [speechRate, setSpeechRate] = useState<number>(() => {
+    const saved = load<number>('hafiz-speech-rate', 0.94)
+    return typeof saved === 'number' && saved >= 0.75 && saved <= 1.25 ? saved : 0.94
+  })
+  const [autoGreet, setAutoGreet] = useState<boolean>(() => load('hafiz-auto-greet', false))
   const [bargeIn, setBargeIn] = useState(() => load('hafiz-barge-in', true))
   const [micMode, setMicMode] = useState<'push_to_talk' | 'continuous'>(() => load('hafiz-mic-mode', 'push_to_talk'))
+  const [executionProfile, setExecutionProfile] = useState<ExecutionProfile>(() => {
+    const saved = load<string>('hafiz-execution-profile', 'balanced_rtx5000')
+    return saved === 'max_speed' || saved === 'low_vram_coexist' ? saved : 'balanced_rtx5000'
+  })
+  const [contextWindow, setContextWindow] = useState<number>(() => load('hafiz-context-window', 8192))
+  const [precisionPref, setPrecisionPref] = useState<'auto_turing' | 'fp16' | 'int8' | 'gguf_q4km'>(() => {
+    const saved = load<string>('hafiz-precision-pref', 'auto_turing')
+    return saved === 'fp16' || saved === 'int8' || saved === 'gguf_q4km' ? saved : 'auto_turing'
+  })
   const [idleTimeoutSec, setIdleTimeoutSec] = useState<number>(() => load('hafiz-idle-timeout', 120))
   const [routerMode, setRouterMode] = useState<boolean>(() => load('hafiz-router-mode', true))
   const [vramMarginGb, setVramMarginGb] = useState<number>(() => load('hafiz-vram-margin', 2.0))
   const [singleModelLock, setSingleModelLock] = useState<boolean>(() => load('hafiz-single-model-lock', true))
-  const [modelDir, setModelDir] = useState<string>(() => load('hafiz-model-dir', 'E:\\HAFIZ_Models'))
+  const [appInstallDir, setAppInstallDir] = useState<string>(() =>
+    load('hafiz-app-install-dir', DEFAULT_STORAGE_CONFIG.appInstallDir),
+  )
+  const [modelDir, setModelDir] = useState<string>(() =>
+    load('hafiz-model-dir', DEFAULT_STORAGE_CONFIG.modelDownloadDir),
+  )
+  const [setupMode, setSetupMode] = useState<ModelSetupMode>(() => {
+    const saved = load<string>('hafiz-setup-mode', DEFAULT_STORAGE_CONFIG.setupMode)
+    return saved === 'download_all' || saved === 'hybrid_scan_then_download' ? saved : 'scan_in_place'
+  })
+  const [scanPartitions, setScanPartitions] = useState<string[]>(() => {
+    const saved = load<string[]>('hafiz-scan-partitions', DEFAULT_STORAGE_CONFIG.scanPartitions)
+    return Array.isArray(saved) && saved.length > 0 ? saved : DEFAULT_STORAGE_CONFIG.scanPartitions
+  })
+  const [inPlaceLinking, setInPlaceLinking] = useState<boolean>(() =>
+    load('hafiz-in-place-linking', DEFAULT_STORAGE_CONFIG.inPlaceLinking),
+  )
+  const [perModelPaths, setPerModelPaths] = useState<Record<string, string>>(() =>
+    load<Record<string, string>>('hafiz-per-model-paths', {}),
+  )
+  const [downloadSpeedLimitMb, setDownloadSpeedLimitMb] = useState<number>(() =>
+    load('hafiz-download-speed-limit', 0),
+  )
+  const [autoResumeDownloads, setAutoResumeDownloads] = useState<boolean>(() =>
+    load('hafiz-auto-resume-downloads', true),
+  )
+  const [setupPromptDismissed, setSetupPromptDismissed] = useState<boolean>(() =>
+    load('hafiz-setup-prompt-dismissed', false),
+  )
   const [wizardOpen, setWizardOpen] = useState(false)
   const [search, setSearch] = useState('')
   const [renamingId, setRenamingId] = useState<number | null>(null)
@@ -295,15 +359,33 @@ export default function App() {
   useEffect(() => { persist('hafiz-projects', projects) }, [projects])
   useEffect(() => { persist('hafiz-language', language) }, [language])
   useEffect(() => { persist('hafiz-voice-lang', voiceLanguage) }, [voiceLanguage])
+  useEffect(() => { persist('hafiz-theme-preset', themePreset) }, [themePreset])
   useEffect(() => { persist('hafiz-ui-scale', uiScale) }, [uiScale])
+  useEffect(() => { persist('hafiz-workspace-density', workspaceDensity) }, [workspaceDensity])
+  useEffect(() => { persist('hafiz-reduce-motion', reduceMotion) }, [reduceMotion])
+  useEffect(() => { persist('hafiz-startup-mode', startupMode) }, [startupMode])
+  useEffect(() => { persist('hafiz-autosave-sec', autosaveSec) }, [autosaveSec])
   useEffect(() => { persist('hafiz-speech', speechEnabled) }, [speechEnabled])
+  useEffect(() => { persist('hafiz-speech-rate', speechRate) }, [speechRate])
+  useEffect(() => { persist('hafiz-auto-greet', autoGreet) }, [autoGreet])
   useEffect(() => { persist('hafiz-barge-in', bargeIn) }, [bargeIn])
   useEffect(() => { persist('hafiz-mic-mode', micMode) }, [micMode])
+  useEffect(() => { persist('hafiz-execution-profile', executionProfile) }, [executionProfile])
+  useEffect(() => { persist('hafiz-context-window', contextWindow) }, [contextWindow])
+  useEffect(() => { persist('hafiz-precision-pref', precisionPref) }, [precisionPref])
   useEffect(() => { persist('hafiz-idle-timeout', idleTimeoutSec) }, [idleTimeoutSec])
   useEffect(() => { persist('hafiz-router-mode', routerMode) }, [routerMode])
   useEffect(() => { persist('hafiz-vram-margin', vramMarginGb) }, [vramMarginGb])
   useEffect(() => { persist('hafiz-single-model-lock', singleModelLock) }, [singleModelLock])
+  useEffect(() => { persist('hafiz-app-install-dir', appInstallDir) }, [appInstallDir])
   useEffect(() => { persist('hafiz-model-dir', modelDir) }, [modelDir])
+  useEffect(() => { persist('hafiz-setup-mode', setupMode) }, [setupMode])
+  useEffect(() => { persist('hafiz-scan-partitions', scanPartitions) }, [scanPartitions])
+  useEffect(() => { persist('hafiz-in-place-linking', inPlaceLinking) }, [inPlaceLinking])
+  useEffect(() => { persist('hafiz-per-model-paths', perModelPaths) }, [perModelPaths])
+  useEffect(() => { persist('hafiz-download-speed-limit', downloadSpeedLimitMb) }, [downloadSpeedLimitMb])
+  useEffect(() => { persist('hafiz-auto-resume-downloads', autoResumeDownloads) }, [autoResumeDownloads])
+  useEffect(() => { persist('hafiz-setup-prompt-dismissed', setupPromptDismissed) }, [setupPromptDismissed])
   useEffect(() => { persist('hafiz-settings-tab', settingsTab) }, [settingsTab])
   useEffect(() => { persist('hafiz-dock-side', dockSide) }, [dockSide])
   useEffect(() => () => { if (audioUrl) URL.revokeObjectURL(audioUrl) }, [audioUrl])
@@ -326,6 +408,25 @@ export default function App() {
   }
   function edit(value: string) { setUndo(u => [...u.slice(-39), text]); setRedo([]); setText(value) }
   function blocked(customMessage?: string) { setNotice(customMessage || t.noticeCompanionBlocked) }
+  function handleExecutionProfileChange(nextProfile: ExecutionProfile) {
+    setExecutionProfile(nextProfile)
+    const defaults = getExecutionProfileDefaults(nextProfile)
+    setVramMarginGb(defaults.vramMarginGb)
+    setIdleTimeoutSec(defaults.idleTimeoutSec)
+    setSingleModelLock(defaults.singleModelLock)
+    setRouterMode(defaults.routerMode)
+  }
+  function handleSetModelManualPath(modelId: string, rawPath: string) {
+    setPerModelPaths(prev => {
+      const cleaned = rawPath.trim()
+      if (!cleaned) {
+        const next = { ...prev }
+        delete next[modelId]
+        return next
+      }
+      return { ...prev, [modelId]: cleaned }
+    })
+  }
   function save() {
     if (!text.trim()) return setNotice(t.noticeEmptySave)
     setProjects(p => [{ id: Date.now(), title: text.trim().slice(0, 48), text }, ...p])
@@ -356,7 +457,7 @@ export default function App() {
       let started = false
       const u = new SpeechSynthesisUtterance(value)
       u.lang = voiceLanguage
-      u.rate = voiceLanguage === 'ar-EG' ? 0.94 : 1.0
+      u.rate = speechRate
       const voices = speechSynthesis.getVoices()
       const langPrefix = voiceLanguage.slice(0, 2)
       const matchedVoice =
@@ -461,15 +562,33 @@ export default function App() {
       preferences: {
         uiLanguage: t.langCode,
         voiceLanguage,
+        themePreset,
         uiScalePercent: uiScale,
+        workspaceDensity,
+        reduceMotion,
+        startupMode,
+        autosaveSec,
         dockSide,
+        speechEnabled,
+        speechRate,
+        autoGreet,
         micMode,
         bargeIn,
+        executionProfile,
+        contextWindow,
+        precisionPref,
         idleUnloadTimeoutSec: idleTimeoutSec,
         llamaCppRouterMode: routerMode,
         vramSafetyMarginGb: vramMarginGb,
         singleModelLock,
+        appInstallDir,
         modelDirectory: modelDir,
+        modelSetupMode: setupMode,
+        scanPartitions,
+        inPlaceLinking,
+        perModelManualPaths: perModelPaths,
+        downloadSpeedLimitMb,
+        autoResumeDownloads,
         savedBrowserProjects: projects.length,
       },
       voiceLatencyStages: VOICE_LATENCY_STAGES,
@@ -563,6 +682,8 @@ export default function App() {
   return (
     <div
       dir={t.dir}
+      data-theme={themePreset}
+      data-density={workspaceDensity}
       className="flex min-h-screen flex-col overflow-x-hidden bg-[#050b13] text-slate-100 selection:bg-cyan-700"
       style={{ fontFamily: ar ? 'var(--hafiz-font-ar)' : 'var(--hafiz-font-en)' }}
     >
@@ -669,7 +790,7 @@ export default function App() {
         )}
 
         <main className="relative isolate flex min-w-0 flex-1 flex-col overflow-hidden">
-          <CalligraphyBackground />
+          <CalligraphyBackground calm={reduceMotion} />
 
           {isStartup ? (
             <section
@@ -761,10 +882,39 @@ export default function App() {
                     </button>
                   ))}
                 </div>
+
+                {/* Non-intrusive First-Run / EXE Model Setup Choice Prompt (Scan E:/D: in-place vs Download to E:) */}
+                {!setupPromptDismissed && (
+                  <div
+                    role="region"
+                    aria-label={t.setupModeTitle}
+                    data-testid="startup-setup-prompt"
+                    className="mx-auto mt-4 flex max-w-[650px] flex-wrap items-center justify-between gap-2.5 rounded-xl border border-cyan-500/40 bg-[#07182c]/85 px-3.5 py-2.5 text-start text-xs text-sky-100 shadow-[0_8px_24px_rgba(0,12,28,0.45)] backdrop-blur-md"
+                  >
+                    <p className="min-w-0 flex-1 leading-5">{t.startupSetupPromptText}</p>
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setWizardOpen(true)}
+                        className="inline-flex min-h-9 items-center rounded-lg border border-cyan-400/60 bg-sky-500/20 px-3 py-1.5 text-xs font-medium text-cyan-100 transition hover:bg-sky-400/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300"
+                      >
+                        {t.startupSetupPromptBtn}
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={t.startupSetupDismissAria}
+                        onClick={() => setSetupPromptDismissed(true)}
+                        className="grid h-9 w-9 place-items-center rounded-lg border border-slate-700/70 text-slate-300 transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300"
+                      >
+                        <Icon name="close" className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </section>
           ) : (
-            <section className="relative z-10 mx-auto w-full max-w-[1500px] flex-1 p-5 pb-36 md:p-9 md:pb-36">
+            <section className={`relative z-10 mx-auto w-full max-w-[1500px] flex-1 ${workspaceDensity === 'compact' ? 'p-4 pb-32 md:p-6 md:pb-32' : 'p-5 pb-36 md:p-9 md:pb-36'}`}>
               <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
                 <div className="min-w-0">
                   <p className="mb-1.5 text-xs tracking-[.12em] text-sky-300">
@@ -957,8 +1107,19 @@ export default function App() {
                   mode={route === 'setup/models' ? 'models' : 'downloads'}
                   ar={ar}
                   t={t}
+                  appInstallDir={appInstallDir}
+                  onAppInstallDirChange={setAppInstallDir}
                   modelDir={modelDir}
                   onModelDirChange={setModelDir}
+                  setupMode={setupMode}
+                  onSetupModeChange={setSetupMode}
+                  scanPartitions={scanPartitions}
+                  onScanPartitionsChange={setScanPartitions}
+                  inPlaceLinking={inPlaceLinking}
+                  onInPlaceLinkingChange={setInPlaceLinking}
+                  perModelPaths={perModelPaths}
+                  onSetModelManualPath={handleSetModelManualPath}
+                  onNotice={setNotice}
                   onBlocked={blocked}
                   onOpenWizard={() => setWizardOpen(true)}
                   buttonClass={button}
@@ -977,16 +1138,36 @@ export default function App() {
                   onLanguageChange={setLanguage}
                   voiceLanguage={voiceLanguage}
                   onVoiceLanguageChange={setVoiceLanguage}
+                  themePreset={themePreset}
+                  onThemePresetChange={setThemePreset}
                   uiScale={uiScale}
                   onUiScaleChange={setUiScale}
+                  workspaceDensity={workspaceDensity}
+                  onWorkspaceDensityChange={setWorkspaceDensity}
+                  reduceMotion={reduceMotion}
+                  onReduceMotionChange={setReduceMotion}
+                  startupMode={startupMode}
+                  onStartupModeChange={setStartupMode}
+                  autosaveSec={autosaveSec}
+                  onAutosaveSecChange={setAutosaveSec}
                   dockSide={dockSide}
                   onDockSideChange={setDockSide}
                   speechEnabled={speechEnabled}
                   onSpeechEnabledChange={setSpeechEnabled}
+                  speechRate={speechRate}
+                  onSpeechRateChange={setSpeechRate}
+                  autoGreet={autoGreet}
+                  onAutoGreetChange={setAutoGreet}
                   bargeIn={bargeIn}
                   onBargeInChange={setBargeIn}
                   micMode={micMode}
                   onMicModeChange={setMicMode}
+                  executionProfile={executionProfile}
+                  onExecutionProfileChange={handleExecutionProfileChange}
+                  contextWindow={contextWindow}
+                  onContextWindowChange={setContextWindow}
+                  precisionPref={precisionPref}
+                  onPrecisionPrefChange={setPrecisionPref}
                   idleTimeoutSec={idleTimeoutSec}
                   onIdleTimeoutSecChange={setIdleTimeoutSec}
                   routerMode={routerMode}
@@ -995,15 +1176,30 @@ export default function App() {
                   onVramMarginGbChange={setVramMarginGb}
                   singleModelLock={singleModelLock}
                   onSingleModelLockChange={setSingleModelLock}
+                  appInstallDir={appInstallDir}
+                  onAppInstallDirChange={setAppInstallDir}
                   modelDir={modelDir}
                   onModelDirChange={setModelDir}
+                  setupMode={setupMode}
+                  onSetupModeChange={setSetupMode}
+                  scanPartitions={scanPartitions}
+                  onScanPartitionsChange={setScanPartitions}
+                  inPlaceLinking={inPlaceLinking}
+                  onInPlaceLinkingChange={setInPlaceLinking}
+                  manualOverridesCount={Object.keys(perModelPaths).length}
+                  downloadSpeedLimitMb={downloadSpeedLimitMb}
+                  onDownloadSpeedLimitMbChange={setDownloadSpeedLimitMb}
+                  autoResumeDownloads={autoResumeDownloads}
+                  onAutoResumeDownloadsChange={setAutoResumeDownloads}
                   savedProjectsCount={projects.length}
                   avatarState={state}
                   onToggleMic={() => void mic()}
                   onPurgeVram={() => setNotice(t.noticePurgeBlocked)}
                   onBlocked={() => blocked()}
+                  onNotice={setNotice}
                   onExportDiagnostics={exportDiagnostics}
                   onOpenWizard={() => setWizardOpen(true)}
+                  onOpenModelLibrary={() => go('setup/models')}
                   buttonClass={button}
                   panelClass={panel}
                   fieldClass={field}
@@ -1147,11 +1343,21 @@ export default function App() {
         open={wizardOpen}
         ar={ar}
         t={t}
+        appInstallDir={appInstallDir}
+        onAppInstallDirChange={setAppInstallDir}
         modelDir={modelDir}
         onModelDirChange={setModelDir}
+        setupMode={setupMode}
+        onSetupModeChange={setSetupMode}
+        scanPartitions={scanPartitions}
+        onScanPartitionsChange={setScanPartitions}
+        inPlaceLinking={inPlaceLinking}
+        onInPlaceLinkingChange={setInPlaceLinking}
+        onNotice={setNotice}
         onClose={() => setWizardOpen(false)}
         onComplete={() => {
           setWizardOpen(false)
+          setSetupPromptDismissed(true)
           setNotice(t.noticeWizardSaved)
         }}
         buttonClass={button}

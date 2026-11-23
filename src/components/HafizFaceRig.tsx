@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { sampleAvatarPose, type AvatarState } from '../utils/avatarAnimation'
+import {
+  advanceSpeechHeartbeat,
+  createSpeechHeartbeatTracker,
+  sampleAvatarPose,
+  type AvatarState,
+} from '../utils/avatarAnimation'
 
 interface HafizFaceRigProps {
   state: AvatarState
@@ -108,6 +113,8 @@ export function HafizFaceRig({
     let rafId = 0
     const startTime = performance.now()
     let lastDraw = 0
+    let heartbeatTracker = createSpeechHeartbeatTracker()
+    let smoothImpulse = 0
     let smoothMouth = 0
     let smoothLeftBrow = 0
     let smoothRightBrow = 0
@@ -167,26 +174,47 @@ export function HafizFaceRig({
       rafId = requestAnimationFrame(render)
       const { state: curState, speechBeatAt: beatAt, micEnergy: energy, visible: isVis } = propsRef.current
       if (!isVis || now - lastDraw < 32) return
+      const dtSec = lastDraw > 0 ? Math.min(0.1, (now - lastDraw) / 1000) : 1 / 30
       lastDraw = now
 
       const t = (now - startTime) / 1000
-      const msSinceBeat = now - beatAt
-      const speechImpulse = msSinceBeat >= 0 && msSinceBeat < 260 ? 1 - msSinceBeat / 260 : 0
 
-      const pose = sampleAvatarPose(curState, t, { speechImpulse, micEnergy: energy })
+      // Advance ongoing speech heartbeat inside rAF (locks to speechBeatAt & sustains syllable cadence)
+      const heartbeat = advanceSpeechHeartbeat(now, curState, beatAt, heartbeatTracker)
+      heartbeatTracker = heartbeat.tracker
 
-      // Smooth organic interpolation across pose transitions (tuned for ~30fps cadence)
-      const mouthLerp = curState === 'speaking' ? 0.48 : 0.25
-      smoothMouth += (pose.mouthOpen - smoothMouth) * mouthLerp
-      smoothLeftBrow += (pose.leftBrowLift - smoothLeftBrow) * 0.22
-      smoothRightBrow += (pose.rightBrowLift - smoothRightBrow) * 0.22
-      smoothSmirk += (pose.smirk - smoothSmirk) * 0.14
-      smoothLookX += (pose.lookX - smoothLookX) * 0.16
-      smoothLookY += (pose.lookY - smoothLookY) * 0.16
-      smoothYaw += (pose.headYawDeg - smoothYaw) * 0.14
-      smoothPitch += (pose.headPitchDeg - smoothPitch) * 0.14
-      smoothNod += (pose.headNod - smoothNod) * 0.22
-      smoothTilt += (pose.headTiltDeg - smoothTilt) * 0.16
+      const pose = sampleAvatarPose(curState, t, {
+        speechImpulse: heartbeat.impulse,
+        speechBeatPhase: heartbeat.phase,
+        speechBeatCount: heartbeat.beatCount,
+        micEnergy: energy,
+      })
+
+      // Frame-rate-independent exponential smoothing tuned for responsive speech heartbeat sync
+      const damp = (speed: number) => 1 - Math.exp(-speed * dtSec)
+      const mouthRate = curState === 'speaking' ? 19 : 9
+      const gazeRate = curState === 'speaking' ? 10.5 : 5.5
+      const browRate = curState === 'speaking' ? 12.5 : 7.5
+
+      smoothImpulse += (heartbeat.impulse - smoothImpulse) * damp(16)
+      smoothMouth += (pose.mouthOpen - smoothMouth) * damp(mouthRate)
+      smoothLeftBrow += (pose.leftBrowLift - smoothLeftBrow) * damp(browRate)
+      smoothRightBrow += (pose.rightBrowLift - smoothRightBrow) * damp(browRate)
+      smoothSmirk += (pose.smirk - smoothSmirk) * damp(6.5)
+      smoothLookX += (pose.lookX - smoothLookX) * damp(gazeRate)
+      smoothLookY += (pose.lookY - smoothLookY) * damp(gazeRate)
+      smoothYaw += (pose.headYawDeg - smoothYaw) * damp(5.2)
+      smoothPitch += (pose.headPitchDeg - smoothPitch) * damp(5.8)
+      smoothNod += (pose.headNod - smoothNod) * damp(9.0)
+      smoothTilt += (pose.headTiltDeg - smoothTilt) * damp(6.0)
+
+      // Expose lightweight live rAF sync telemetry on the canvas dataset (zero React re-renders)
+      canvas.dataset.heartbeatCount = String(heartbeat.beatCount)
+      canvas.dataset.speechImpulse = smoothImpulse.toFixed(2)
+      canvas.dataset.gazeX = smoothLookX.toFixed(2)
+      canvas.dataset.gazeY = smoothLookY.toFixed(2)
+      canvas.dataset.browLift = ((smoothLeftBrow + smoothRightBrow) / 2).toFixed(2)
+      canvas.dataset.mouthOpen = smoothMouth.toFixed(2)
 
       // Drive smooth 3D perspective head turn (left/right yaw & up/down pitch) directly on stage ref
       if (stageRef.current) {
@@ -242,18 +270,21 @@ export function HafizFaceRig({
         )
       }
 
-      // 3. Subtle Confident Micro-Expression (light mouth-corner lift when idle/attentive)
-      if (smoothMouth <= 0.02 && smoothSmirk > 0.05) {
-        drawFeatheredSlice(
-          LANDMARKS.mouthCornerRight.x * W,
-          LANDMARKS.mouthCornerRight.y * H,
-          LANDMARKS.mouthCornerRight.rx * W,
-          LANDMARKS.mouthCornerRight.ry * H,
-          smoothSmirk * W * 0.0045,
-          -smoothSmirk * H * 0.0065,
-          1,
-          0.42,
-        )
+      // 3. Subtle Confident Micro-Expression (light mouth-corner lift in idle, attentive & speech phrase peaks)
+      if (smoothSmirk > 0.05 && smoothMouth < 0.22) {
+        const smirkWeight = smoothSmirk * (1 - smoothMouth * 3.2)
+        if (smirkWeight > 0.03) {
+          drawFeatheredSlice(
+            LANDMARKS.mouthCornerRight.x * W,
+            LANDMARKS.mouthCornerRight.y * H,
+            LANDMARKS.mouthCornerRight.rx * W,
+            LANDMARKS.mouthCornerRight.ry * H,
+            smirkWeight * W * 0.0045,
+            -smirkWeight * H * 0.0065,
+            1,
+            0.42,
+          )
+        }
       }
 
       // 4. Articulated Speaking Mouth Cavity + Realistic Lower-Lip & Bearded Chin Jaw Drop
@@ -343,12 +374,14 @@ export function HafizFaceRig({
         )
       }
 
-      // 5. Expressive Eyes Behind Sunglasses: Directional Gaze Tracking (Left/Right/Up) + Blinks + Glint
+      // 5. Expressive Eyes Behind Sunglasses: Speech-Heartbeat-Synced Gaze Tracking + Blinks + Glint
       const eyes = [LANDMARKS.leftEye, LANDMARKS.rightEye]
-      const eyeOpenScale = Math.max(0.06, 1 - pose.blink * 0.94)
+      // Subtle lower-lid expression squint synced to smirk & speech emphasis beats
+      const expressionSquint = smoothSmirk * 0.14 + smoothImpulse * 0.08
+      const eyeOpenScale = Math.max(0.06, 1 - pose.blink * 0.94 - expressionSquint * (1 - pose.blink))
       const eyeGlowStrength =
         curState === 'speaking'
-          ? 0.46 + smoothMouth * 0.26
+          ? 0.44 + smoothMouth * 0.22 + smoothImpulse * 0.22
           : curState === 'thinking'
             ? 0.52
             : curState === 'listening'
@@ -366,9 +399,9 @@ export function HafizFaceRig({
         ctx.roundRect(ex - erx, ey - ery, erx * 2, ery * 2, [ery * 0.35, ery * 0.35, ery * 0.78, ery * 0.78])
         ctx.clip()
 
-        // Directional eye gaze offset inside the smoked lens (tracks left, right, up, screen)
-        const gazeOffsetX = smoothLookX * erx * 0.32
-        const gazeOffsetY = smoothLookY * ery * 0.36
+        // Directional eye gaze offset inside the smoked lens (tracks speech heartbeat & idle gaze)
+        const gazeOffsetX = smoothLookX * erx * 0.36
+        const gazeOffsetY = smoothLookY * ery * 0.38
         const irisX = ex + gazeOffsetX
         const irisY = ey + gazeOffsetY
 

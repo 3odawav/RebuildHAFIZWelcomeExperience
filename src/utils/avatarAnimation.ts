@@ -39,6 +39,107 @@ export interface HafizIntentResult {
   replyEn: string
 }
 
+export interface SpeechHeartbeatTracker {
+  lastObservedBeatAt: number
+  currentBeatAt: number
+  beatIntervalMs: number
+  beatCount: number
+}
+
+export interface SpeechHeartbeatSample {
+  /** Smooth 0..1 attack/decay heartbeat impulse synced to ongoing speech */
+  impulse: number
+  /** Normalized 0..1 progress within the current heartbeat cycle */
+  phase: number
+  /** Monotonic beat index for alternating natural gaze & expression accents */
+  beatCount: number
+  /** Updated tracker state for the next requestAnimationFrame tick */
+  tracker: SpeechHeartbeatTracker
+}
+
+export const DEFAULT_SPEECH_BEAT_MS = 310
+
+export function createSpeechHeartbeatTracker(): SpeechHeartbeatTracker {
+  return {
+    lastObservedBeatAt: 0,
+    currentBeatAt: 0,
+    beatIntervalMs: DEFAULT_SPEECH_BEAT_MS,
+    beatCount: 0,
+  }
+}
+
+/**
+ * Pure frame-stepped speech heartbeat synchronizer designed to be called from
+ * requestAnimationFrame. Locks to real `speechBeatAt` word/syllable timestamps
+ * when available and maintains a smooth ongoing cadence while `state === 'speaking'`.
+ */
+export function advanceSpeechHeartbeat(
+  nowMs: number,
+  state: AvatarState,
+  speechBeatAt: number,
+  prev: SpeechHeartbeatTracker,
+): SpeechHeartbeatSample {
+  if (state !== 'speaking') {
+    const msSinceLast = prev.currentBeatAt > 0 ? nowMs - prev.currentBeatAt : Number.POSITIVE_INFINITY
+    const tail = msSinceLast >= 0 && msSinceLast < 180 ? Math.cos((msSinceLast / 180) * (Math.PI / 2)) * 0.35 : 0
+    return {
+      impulse: tail,
+      phase: 0,
+      beatCount: 0,
+      tracker: tail > 0.01 ? prev : createSpeechHeartbeatTracker(),
+    }
+  }
+
+  let { lastObservedBeatAt, currentBeatAt, beatIntervalMs, beatCount } = prev
+
+  // 1. Lock onto a fresh external speech boundary heartbeat when it arrives
+  if (speechBeatAt > 0 && speechBeatAt !== lastObservedBeatAt) {
+    if (lastObservedBeatAt > 0) {
+      const observedDelta = speechBeatAt - lastObservedBeatAt
+      if (observedDelta >= 140 && observedDelta <= 680) {
+        beatIntervalMs = lerp(beatIntervalMs, observedDelta, 0.35)
+      }
+    }
+    lastObservedBeatAt = speechBeatAt
+    currentBeatAt = Math.min(nowMs, speechBeatAt)
+    beatCount += 1
+  } else if (currentBeatAt <= 0) {
+    currentBeatAt = nowMs
+    beatCount = 1
+  } else {
+    // 2. Sustain ongoing rhythmic heartbeat between boundary events so gaze & expressions never freeze
+    const safeInterval = Math.max(180, Math.min(520, beatIntervalMs))
+    const elapsed = nowMs - currentBeatAt
+    if (elapsed >= safeInterval) {
+      const steps = Math.floor(elapsed / safeInterval)
+      currentBeatAt += steps * safeInterval
+      beatCount += steps
+    }
+  }
+
+  const safeInterval = Math.max(180, Math.min(520, beatIntervalMs))
+  const msInBeat = Math.max(0, nowMs - currentBeatAt)
+  const phase = Math.min(1, msInBeat / safeInterval)
+
+  // Fast natural attack (first 16% of beat), smooth cosine-exponential release across the rest
+  const impulse =
+    phase < 0.16
+      ? smoothstep(0, 0.16, phase)
+      : Math.pow(Math.max(0, 1 - (phase - 0.16) / 0.84), 1.45)
+
+  return {
+    impulse,
+    phase,
+    beatCount,
+    tracker: {
+      lastObservedBeatAt,
+      currentBeatAt,
+      beatIntervalMs: safeInterval,
+      beatCount,
+    },
+  }
+}
+
 function smoothstep(edge0: number, edge1: number, x: number): number {
   const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)))
   return t * t * (3 - 2 * t)
@@ -140,37 +241,55 @@ export function sampleAvatarPose(
   options?: {
     /** Recent word/syllable boundary impulse (0..1) */
     speechImpulse?: number
+    /** Normalized progress (0..1) inside the ongoing speech heartbeat */
+    speechBeatPhase?: number
+    /** Monotonic heartbeat count during the active utterance */
+    speechBeatCount?: number
     /** Average live mic energy (0..1) */
     micEnergy?: number
   },
 ): AvatarPose {
   const speechImpulse = Math.max(0, Math.min(1, options?.speechImpulse ?? 0))
+  const speechBeatPhase = Math.max(0, Math.min(1, options?.speechBeatPhase ?? 0))
+  const speechBeatCount = Math.max(0, Math.floor(options?.speechBeatCount ?? 0))
   const micEnergy = Math.max(0, Math.min(1, options?.micEnergy ?? 0))
   const blink = computeBlink(timeSec)
 
   if (state === 'speaking') {
-    const phraseGate = Math.sin(timeSec * 1.15) > -0.78 ? 1 : 0.12
+    const phraseGate = Math.sin(timeSec * 1.15) > -0.78 ? 1 : 0.16
     const syllableA = Math.max(0, Math.sin(timeSec * 11.4))
     const syllableB = Math.max(0, Math.sin(timeSec * 7.3 + 1.1))
     const syllableC = 0.5 + 0.5 * Math.sin(timeSec * 16.8 + 0.4)
-    const rawOpen = (syllableA * 0.55 + syllableB * 0.35 + syllableC * 0.25) * phraseGate
-    const mouthOpen = Math.min(1, Math.max(0.05, rawOpen * 0.85 + speechImpulse * 0.42))
+    const rawOpen = (syllableA * 0.52 + syllableB * 0.34 + syllableC * 0.24) * phraseGate
+    const mouthOpen = Math.min(1, Math.max(0.06, rawOpen * 0.72 + speechImpulse * 0.48))
 
-    const vowelShape = Math.sin(timeSec * 5.2 + 0.7)
-    const mouthWidth = 0.95 + vowelShape * 0.16
+    const vowelShape = Math.sin(timeSec * 5.2 + 0.7 + speechBeatCount * 0.85)
+    const mouthWidth = 0.94 + vowelShape * 0.15 + speechImpulse * 0.04
 
-    const baseBrow = Math.min(1, 0.24 + mouthOpen * 0.54 + speechImpulse * 0.24)
-    const asym = Math.sin(timeSec * 2.1) * 0.12
+    // Heartbeat-synced conversational expression cadence:
+    // stressed beats lift eyebrows asymmetrically, phrase peaks add a warm confident micro-smile.
+    const beatPolarity = speechBeatCount % 2 === 0 ? 1 : -1
+    const accentBeat = speechBeatCount % 3 === 0 ? 1 : 0.45
+    const baseBrow = Math.min(1, 0.22 + mouthOpen * 0.44 + speechImpulse * 0.34 * accentBeat)
+    const asym = (Math.sin(timeSec * 2.1) * 0.08 + beatPolarity * speechImpulse * 0.14)
     const leftBrowLift = Math.max(0, Math.min(1, baseBrow + asym))
     const rightBrowLift = Math.max(0, Math.min(1, baseBrow - asym))
+    const smirk = Math.min(0.45, 0.12 + (speechBeatCount % 4 === 0 ? 0.18 : 0.06) * (0.4 + speechImpulse * 0.6))
 
-    const headNod = Math.sin(timeSec * 3.4) * 0.36 + mouthOpen * 0.44
-    const headYawDeg = Math.sin(timeSec * 1.35) * 3.2
-    const headPitchDeg = Math.sin(timeSec * 2.6) * 1.8 + mouthOpen * 1.4
-    const headTiltDeg = Math.sin(timeSec * 1.9) * 2.2 + Math.sin(timeSec * 4.7) * 0.5
-    const lookX = Math.sin(timeSec * 1.1) * 0.18
-    const lookY = -0.05 + Math.sin(timeSec * 1.7) * 0.1
-    const lensGlint = Math.sin(timeSec * 2.4)
+    // Heartbeat-synced eye gaze: locks engagingly on the user on stressed beats and performs
+    // subtle natural conversational micro-glances (left/right/slightly up) across syllables.
+    const beatAngle = speechBeatCount * 1.61803398875
+    const beatGlanceX = Math.sin(beatAngle) * 0.34 * (0.35 + speechImpulse * 0.65)
+    const beatGlanceY = (Math.cos(beatAngle * 0.7) * 0.18 - speechImpulse * 0.14)
+    const microSaccade = Math.sin(speechBeatPhase * Math.PI) * 0.08 * beatPolarity
+    const lookX = Math.max(-0.65, Math.min(0.65, Math.sin(timeSec * 1.1) * 0.16 + beatGlanceX + microSaccade))
+    const lookY = Math.max(-0.5, Math.min(0.35, -0.05 + Math.sin(timeSec * 1.7) * 0.08 + beatGlanceY))
+
+    const headNod = Math.sin(timeSec * 3.4) * 0.28 + mouthOpen * 0.34 + speechImpulse * 0.28
+    const headYawDeg = Math.sin(timeSec * 1.35) * 2.4 + lookX * 4.2
+    const headPitchDeg = Math.sin(timeSec * 2.6) * 1.4 + mouthOpen * 1.1 + speechImpulse * 1.35 - lookY * 2.2
+    const headTiltDeg = Math.sin(timeSec * 1.9) * 1.8 + beatPolarity * speechImpulse * 1.15
+    const lensGlint = Math.sin(timeSec * 2.4) * 0.65 + lookX * 0.55
 
     const waveBars = Array.from({ length: 16 }, (_, i) => {
       const centerWeight = 1 - Math.abs(i - 6.5) / 8.5
@@ -178,14 +297,17 @@ export function sampleAvatarPose(
       const harmonic = 0.5 + 0.5 * Math.cos(timeSec * 9.5 + i * 0.9)
       return Math.min(
         1,
-        Math.max(0.08, centerWeight * (0.28 + mouthOpen * 0.68) * (0.45 + ripple * 0.35 + harmonic * 0.2)),
+        Math.max(
+          0.08,
+          centerWeight * (0.24 + mouthOpen * 0.52 + speechImpulse * 0.26) * (0.45 + ripple * 0.35 + harmonic * 0.2),
+        ),
       )
     })
 
     return {
       mouthOpen,
       mouthWidth,
-      smirk: 0.15,
+      smirk,
       leftBrowLift,
       rightBrowLift,
       browLift: (leftBrowLift + rightBrowLift) / 2,
@@ -353,11 +475,11 @@ export function resolveHafizIntent(rawInput: string): HafizIntentResult {
       replyEn: 'Opening AI Model Library.',
     }
   }
-  if (/تحميل|تنزيل|تثبيت|download|install/.test(value)) {
+  if (/تحميل|تنزيل|تثبيت|بارتيشن|سكان|مسح|download|install|partition|scan/.test(value)) {
     return {
       route: 'setup/downloads',
-      replyAr: 'هفتحلك مركز التحميل والتثبيت.',
-      replyEn: 'Opening Downloads and Installation.',
+      replyAr: 'هفتحلك مركز التحميل ومسح البارتيشنات وتثبيت البرنامج على E:.',
+      replyEn: 'Opening Downloads, Multi-Partition Scanner, and Installation.',
     }
   }
   if (/إعدادات|اعدادات|setting|config|ضبط|gpu|vram|ذاكرة|كارت|تشخيص|diagnostic|orchestrator|منسق/.test(value)) {

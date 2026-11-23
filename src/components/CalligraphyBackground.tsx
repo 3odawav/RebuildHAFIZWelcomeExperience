@@ -70,11 +70,12 @@ function DiacriticMark({ kind, color, size }: { kind: DiacriticKind; color: stri
   )
 }
 
-export function CalligraphyBackground() {
+export function CalligraphyBackground({ calm = false }: { calm?: boolean }) {
   return (
     <div
       aria-hidden="true"
       data-testid="calligraphy-background"
+      data-calm={calm ? 'true' : 'false'}
       dir="rtl"
       className="pointer-events-none absolute inset-0 z-0 overflow-hidden select-none"
     >
@@ -84,7 +85,7 @@ export function CalligraphyBackground() {
           key={glyph.id}
           lang="ar"
           className={`absolute leading-none ${
-            glyph.drift === 'a' ? 'calligraphy-drift-a' : 'calligraphy-drift-b'
+            calm ? '' : glyph.drift === 'a' ? 'calligraphy-drift-a' : 'calligraphy-drift-b'
           }`}
           style={
             {
@@ -95,6 +96,7 @@ export function CalligraphyBackground() {
               fontWeight: glyph.depth === 0 ? 700 : 400,
               color: glyph.color,
               opacity: glyph.opacity,
+              transform: calm ? `translate(-50%, -50%) rotate(${glyph.rotate}deg)` : undefined,
               '--rot': `${glyph.rotate}deg`,
               '--dur': `${glyph.duration}s`,
               '--delay': `${glyph.delay}s`,
@@ -110,12 +112,13 @@ export function CalligraphyBackground() {
       {DIACRITICS.map(mark => (
         <span
           key={mark.id}
-          className="calligraphy-tashkeel absolute"
+          className={`${calm ? '' : 'calligraphy-tashkeel '}absolute`}
           style={
             {
               left: `${mark.x}%`,
               top: `${mark.y}%`,
               opacity: mark.opacity,
+              transform: calm ? `translate(-50%, -50%) rotate(${mark.rotate}deg)` : undefined,
               '--rot': `${mark.rotate}deg`,
               '--dur': `${mark.duration}s`,
               '--delay': `${mark.delay}s`,

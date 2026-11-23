@@ -95,3 +95,131 @@
     animation: none;
   }
 }
+
+/* Theme Preset: Dark Graphite & Gold */
+[data-theme='graphite_gold'] {
+  background-color: #0e1014;
+  color: #f4efe6;
+}
+[data-theme='graphite_gold'] header,
+[data-theme='graphite_gold'] aside,
+[data-theme='graphite_gold'] footer {
+  background-color: rgba(18, 20, 25, 0.94);
+  border-color: rgba(212, 169, 82, 0.24);
+}
+[data-theme='graphite_gold'] .hafiz-panel {
+  background-color: rgba(22, 25, 31, 0.92);
+  border-color: rgba(212, 169, 82, 0.28);
+}
+[data-theme='graphite_gold'] .hafiz-field {
+  background-color: rgba(10, 12, 16, 0.72);
+  border-color: rgba(212, 169, 82, 0.34);
+  color: #f7f3eb;
+}
+[data-theme='graphite_gold'] .hafiz-btn:hover {
+  border-color: rgba(235, 193, 102, 0.7);
+  background-color: rgba(212, 169, 82, 0.14);
+}
+[data-theme='graphite_gold'] [data-testid='calligraphy-background'] {
+  filter: sepia(0.45) hue-rotate(-14deg) brightness(0.92);
+}
+
+/* Theme Preset: Light Studio (White & Cobalt Blue) */
+[data-theme='light_studio'] {
+  background-color: #eef4fb;
+  color: #0f172a;
+}
+[data-theme='light_studio'] header,
+[data-theme='light_studio'] aside,
+[data-theme='light_studio'] footer {
+  background-color: rgba(255, 255, 255, 0.92);
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+[data-theme='light_studio'] .hafiz-panel {
+  background-color: rgba(255, 255, 255, 0.95);
+  border-color: #cbd5e1;
+  color: #0f172a;
+  box-shadow: 0 8px 28px rgba(15, 38, 72, 0.06);
+}
+[data-theme='light_studio'] .hafiz-field {
+  background-color: #f8fafc;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+[data-theme='light_studio'] .hafiz-field::placeholder {
+  color: #64748b;
+}
+[data-theme='light_studio'] .hafiz-btn {
+  background-color: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+[data-theme='light_studio'] .hafiz-btn:hover {
+  background-color: #e0f2fe;
+  border-color: #0284c7;
+  color: #0c4a6e;
+}
+[data-theme='light_studio'] [class*='text-slate-100'],
+[data-theme='light_studio'] [class*='text-slate-200'],
+[data-theme='light_studio'] [class*='text-white'] {
+  color: #0f172a;
+}
+[data-theme='light_studio'] [class*='text-slate-300'],
+[data-theme='light_studio'] [class*='text-slate-400'] {
+  color: #334155;
+}
+[data-theme='light_studio'] [class*='text-sky-100'],
+[data-theme='light_studio'] [class*='text-sky-200'],
+[data-theme='light_studio'] [class*='text-sky-300'],
+[data-theme='light_studio'] [class*='text-cyan-100'],
+[data-theme='light_studio'] [class*='text-cyan-200'],
+[data-theme='light_studio'] [class*='text-cyan-300'] {
+  color: #0369a1;
+}
+[data-theme='light_studio'] [class*='text-emerald-200'],
+[data-theme='light_studio'] [class*='text-emerald-300'] {
+  color: #047857;
+}
+[data-theme='light_studio'] [class*='text-amber-100'],
+[data-theme='light_studio'] [class*='text-amber-200'],
+[data-theme='light_studio'] [class*='text-amber-300'] {
+  color: #b45309;
+}
+[data-theme='light_studio'] [class*='bg-black/'],
+[data-theme='light_studio'] [class*='bg-slate-950'],
+[data-theme='light_studio'] [class*='bg-[#04'],
+[data-theme='light_studio'] [class*='bg-[#05'],
+[data-theme='light_studio'] [class*='bg-[#06'],
+[data-theme='light_studio'] [class*='bg-[#07'],
+[data-theme='light_studio'] [class*='bg-[#08'],
+[data-theme='light_studio'] [class*='bg-[#09'],
+[data-theme='light_studio'] [class*='bg-[#0b1623]'] {
+  background-color: #f8fafc;
+  border-color: #cbd5e1;
+}
+[data-theme='light_studio'] [class*='bg-slate-900/'],
+[data-theme='light_studio'] [class*='bg-sky-950/'] {
+  background-color: #e2e8f0;
+  border-color: #cbd5e1;
+}
+[data-theme='light_studio'] [class*='border-slate-800'],
+[data-theme='light_studio'] [class*='border-slate-700'] {
+  border-color: #cbd5e1;
+}
+[data-theme='light_studio'] [data-testid='floating-hafiz-assistant'] > div {
+  background-color: rgba(255, 255, 255, 0.96);
+  border-color: #7dd3fc;
+  color: #0f172a;
+  box-shadow: 0 12px 32px rgba(15, 38, 72, 0.16);
+}
+[data-theme='light_studio'] [data-testid='hafiz-startup-stage'] [role='status'],
+[data-theme='light_studio'] [data-testid='hafiz-startup-stage'] [role='status'] span {
+  background-color: #051428;
+  color: #e0f2fe;
+}
+[data-theme='light_studio'] [data-testid='calligraphy-background'] {
+  opacity: 0.42;
+  filter: invert(0.85) hue-rotate(180deg);
+}
+
