@@ -1288,7 +1288,7 @@ export default function App() {
                   avatarState={state}
                   onToggleMic={() => void mic()}
                   onPurgeVram={() => void handlePurgeVram()}
-                  onBlocked={() => blocked()}
+                  onBlocked={message => blocked(message)}
                   onExportDiagnostics={exportDiagnostics}
                   onOpenWizard={() => setWizardOpen(true)}
                 />
