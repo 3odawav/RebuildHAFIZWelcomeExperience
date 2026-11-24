@@ -36,6 +36,7 @@ react(),
       host: process.env.FIGMA_DEV_SERVER_HOST || '0.0.0.0',
       port: parseInt(process.env.PORT || '8443'),
       strictPort: true,
+      allowedHosts: ['workspace-4w4kkzrt-ecd23282fe1f7474.v0.build'],
       watch: {
         ignored: [
           '**/.figma/**',
