@@ -16,6 +16,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+$PSNativeCommandUseErrorActionPreference = $true
 $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $NativeSln = Join-Path $RepoRoot "native\HAFIZ.Native.sln"
 $AppCsproj = Join-Path $RepoRoot "native\HAFIZ.App\HAFIZ.App.csproj"
@@ -25,7 +26,8 @@ $InstallerScript = Join-Path $RepoRoot "installer\HAFIZ_Setup.iss"
 $ChecksumFile = Join-Path $RepoRoot "artifacts\SHA256SUMS.txt"
 
 Write-Host "==> Verifying .NET SDK..." -ForegroundColor Cyan
-dotnet --info | Select-Object -First 8
+Push-Location $RepoRoot
+try { dotnet --info | Select-Object -First 8 } finally { Pop-Location }
 
 Write-Host "==> Restoring native WinUI 3 solution..." -ForegroundColor Cyan
 dotnet restore $NativeSln -r win-x64

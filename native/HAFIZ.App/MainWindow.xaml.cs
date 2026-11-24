@@ -59,7 +59,7 @@ public sealed partial class MainWindow : Window
 
             if (e.PropertyName == nameof(MainViewModel.FloatingDockSide))
             {
-                FloatingAssistant.HorizontalAlignment = _viewModel.FloatingDockSide == FloatingDockSide.Left
+                FloatingAssistant.HorizontalAlignment = _viewModel.FloatingDockSide == AssistantDockSide.Left
                     ? HorizontalAlignment.Left
                     : HorizontalAlignment.Right;
             }
@@ -88,12 +88,12 @@ public sealed partial class MainWindow : Window
 
         RootLayout.RequestedTheme = _viewModel.SelectedTheme switch
         {
-            AppTheme.DayWhiteBlue => ElementTheme.Light,
+            ThemePreset.DayWhiteChromeBlue => ElementTheme.Light,
             _ => ElementTheme.Dark
         };
 
         // Apply Midnight Blue override canvas if MidnightBlue is chosen
-        if (_viewModel.SelectedTheme == AppTheme.MidnightBlue)
+        if (_viewModel.SelectedTheme == ThemePreset.MidnightBlueAi)
         {
             RootLayout.Background = new SolidColorBrush(Color.FromArgb(255, 7, 16, 30));
         }
@@ -132,9 +132,9 @@ public sealed partial class MainWindow : Window
 
     private void OnQuickLanguageToggle(object sender, RoutedEventArgs e)
     {
-        var next = _viewModel.SelectedLanguage == AppLanguage.ArabicEgypt
-            ? AppLanguage.EnglishUs
-            : AppLanguage.ArabicEgypt;
+        var next = _viewModel.SelectedLanguage == UiLanguage.ArabicEgypt
+            ? UiLanguage.EnglishUs
+            : UiLanguage.ArabicEgypt;
         _viewModel.SetLanguage(next);
     }
 
@@ -142,9 +142,9 @@ public sealed partial class MainWindow : Window
     {
         var next = _viewModel.SelectedTheme switch
         {
-            AppTheme.DayWhiteBlue => AppTheme.NightGraphiteGold,
-            AppTheme.NightGraphiteGold => AppTheme.MidnightBlue,
-            _ => AppTheme.DayWhiteBlue
+            ThemePreset.DayWhiteChromeBlue => ThemePreset.NightGraphiteGold,
+            ThemePreset.NightGraphiteGold => ThemePreset.MidnightBlueAi,
+            _ => ThemePreset.DayWhiteChromeBlue
         };
         _viewModel.SetTheme(next);
     }

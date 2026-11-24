@@ -48,16 +48,16 @@ public sealed partial class MainViewModel : ObservableObject
         _localization.SetLanguage(Settings.Language);
         SelectedTheme = Settings.Theme;
         SelectedLanguage = Settings.Language;
-        FloatingDockSide = Settings.FloatingDockSide;
-        LlmProvider = Settings.LlmProvider;
+        FloatingDockSide = Settings.DockSide;
+        LlmProvider = Settings.InferenceProvider;
         LmStudioBaseUrl = Settings.LmStudioBaseUrl;
-        SelectedLmStudioModelId = Settings.SelectedLmStudioModelId;
+        SelectedLmStudioModelId = Settings.LmStudioSelectedModelId ?? string.Empty;
         ShowStartupStage = true;
         ActiveWorkspace = WorkspaceSection.LyricsStudio;
-        AssistantState = AvatarLifecycleState.Idle;
+        AssistantState = AvatarActivityState.Idle;
         CurrentExpression = ExpressionId.Neutral;
 
-        foreach (var root in Settings.ScanRoots)
+        foreach (var root in Settings.ScanDirectories)
         {
             ScanRoots.Add(root);
         }
@@ -68,17 +68,17 @@ public sealed partial class MainViewModel : ObservableObject
 
     [ObservableProperty] private bool showStartupStage = true;
     [ObservableProperty] private WorkspaceSection activeWorkspace = WorkspaceSection.LyricsStudio;
-    [ObservableProperty] private AppTheme selectedTheme = AppTheme.NightGraphiteGold;
-    [ObservableProperty] private AppLanguage selectedLanguage = AppLanguage.ArabicEgypt;
-    [ObservableProperty] private FloatingDockSide floatingDockSide = FloatingDockSide.Right;
-    [ObservableProperty] private AvatarLifecycleState assistantState = AvatarLifecycleState.Idle;
+    [ObservableProperty] private ThemePreset selectedTheme = ThemePreset.NightGraphiteGold;
+    [ObservableProperty] private UiLanguage selectedLanguage = UiLanguage.ArabicEgypt;
+    [ObservableProperty] private AssistantDockSide floatingDockSide = AssistantDockSide.Right;
+    [ObservableProperty] private AvatarActivityState assistantState = AvatarActivityState.Idle;
     [ObservableProperty] private ExpressionId currentExpression = ExpressionId.Neutral;
     [ObservableProperty] private string assistantTranscript = string.Empty;
     [ObservableProperty] private string statusBanner = string.Empty;
     [ObservableProperty] private bool isScanningModels;
     [ObservableProperty] private int scanFilesCount;
     [ObservableProperty] private GpuTelemetrySnapshot gpuTelemetry = GpuTelemetrySnapshot.Unavailable("Not probed yet.");
-    [ObservableProperty] private LlmProviderMode llmProvider = LlmProviderMode.HafizManagedLlamaCpp;
+    [ObservableProperty] private LocalInferenceProvider llmProvider = LocalInferenceProvider.EmbeddedLlamaCpp;
     [ObservableProperty] private string lmStudioBaseUrl = "http://127.0.0.1:1234";
     [ObservableProperty] private string selectedLmStudioModelId = string.Empty;
     [ObservableProperty] private bool lmStudioConnected;
@@ -88,7 +88,7 @@ public sealed partial class MainViewModel : ObservableObject
     public ObservableCollection<LmStudioModelInfo> LmStudioModels { get; } = new();
     public ObservableCollection<DownloadProgressSnapshot> ActiveDownloads { get; } = new();
 
-    public bool IsRightToLeft => SelectedLanguage == AppLanguage.ArabicEgypt;
+    public bool IsRightToLeft => SelectedLanguage == UiLanguage.ArabicEgypt;
     public string Text(string key) => _localization.Get(key);
 
     [RelayCommand]
@@ -96,18 +96,18 @@ public sealed partial class MainViewModel : ObservableObject
     {
         ActiveWorkspace = section;
         ShowStartupStage = false;
-        AssistantState = AvatarLifecycleState.Idle;
+        AssistantState = AvatarActivityState.Idle;
     }
 
     [RelayCommand]
     public void ReturnToStartupStage()
     {
         ShowStartupStage = true;
-        AssistantState = AvatarLifecycleState.Idle;
+        AssistantState = AvatarActivityState.Idle;
     }
 
     [RelayCommand]
-    public void SetTheme(AppTheme theme)
+    public void SetTheme(ThemePreset theme)
     {
         SelectedTheme = theme;
         Settings.Theme = theme;
@@ -115,7 +115,7 @@ public sealed partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
-    public void SetLanguage(AppLanguage language)
+    public void SetLanguage(UiLanguage language)
     {
         SelectedLanguage = language;
         Settings.Language = language;
@@ -127,10 +127,10 @@ public sealed partial class MainViewModel : ObservableObject
     [RelayCommand]
     public void ToggleFloatingDockSide()
     {
-        FloatingDockSide = FloatingDockSide == FloatingDockSide.Right
-            ? FloatingDockSide.Left
-            : FloatingDockSide.Right;
-        Settings.FloatingDockSide = FloatingDockSide;
+        FloatingDockSide = FloatingDockSide == AssistantDockSide.Right
+            ? AssistantDockSide.Left
+            : AssistantDockSide.Right;
+        Settings.DockSide = FloatingDockSide;
         PersistSettings();
     }
 
@@ -140,9 +140,9 @@ public sealed partial class MainViewModel : ObservableObject
         CurrentExpression = expression;
         AssistantState = expression switch
         {
-            ExpressionId.TalkingWideOpen or ExpressionId.TalkingSlightlyOpen => AvatarLifecycleState.Speaking,
-            ExpressionId.Confused => AvatarLifecycleState.Thinking,
-            _ => AvatarLifecycleState.Idle
+            ExpressionId.TalkingWideOpen or ExpressionId.TalkingSlightlyOpen => AvatarActivityState.Speaking,
+            ExpressionId.Confused => AvatarActivityState.Thinking,
+            _ => AvatarActivityState.Idle
         };
     }
 
@@ -174,7 +174,7 @@ public sealed partial class MainViewModel : ObservableObject
                 _ = ScanLocalModelsCommand.ExecuteAsync(null);
                 break;
             default:
-                AssistantState = AvatarLifecycleState.Thinking;
+                AssistantState = AvatarActivityState.Thinking;
                 StatusBanner = intent.ResponseAr;
                 break;
         }
@@ -195,14 +195,14 @@ public sealed partial class MainViewModel : ObservableObject
 
         try
         {
-            var indexPath = Path.Combine(Settings.ModelStoragePath, "model-index.json");
+            var indexPath = Path.Combine(Settings.ModelDownloadDirectory, "model-index.json");
             var progress = new Progress<ModelScanProgress>(p => ScanFilesCount = p.FilesScanned);
             var results = await _modelScanner.ScanInPlaceAsync(ScanRoots, indexPath, progress);
             foreach (var item in results)
             {
                 DiscoveredModels.Add(item);
             }
-            StatusBanner = SelectedLanguage == AppLanguage.ArabicEgypt
+            StatusBanner = SelectedLanguage == UiLanguage.ArabicEgypt
                 ? $"تم فحص {ScanFilesCount} ملف وتم ربط {DiscoveredModels.Count} موديل في مكانهم بدون نقل."
                 : $"Scanned {ScanFilesCount} files and indexed {DiscoveredModels.Count} models in-place.";
         }
@@ -216,7 +216,7 @@ public sealed partial class MainViewModel : ObservableObject
     public async Task DiscoverLmStudioAsync()
     {
         Settings.LmStudioBaseUrl = LmStudioBaseUrl;
-        Settings.LlmProvider = LlmProvider;
+        Settings.InferenceProvider = LlmProvider;
         PersistSettings();
 
         var result = await _lmStudioClient.DiscoverModelsAsync(LmStudioBaseUrl);
@@ -230,7 +230,7 @@ public sealed partial class MainViewModel : ObservableObject
         if (string.IsNullOrWhiteSpace(SelectedLmStudioModelId) && result.Models.Count > 0)
         {
             SelectedLmStudioModelId = result.Models[0].Id;
-            Settings.SelectedLmStudioModelId = SelectedLmStudioModelId;
+            Settings.LmStudioSelectedModelId = SelectedLmStudioModelId;
             PersistSettings();
         }
 
@@ -252,7 +252,7 @@ public sealed partial class MainViewModel : ObservableObject
         if (string.IsNullOrWhiteSpace(path)) return;
         if (ScanRoots.Any(r => r.Equals(path, StringComparison.OrdinalIgnoreCase))) return;
         ScanRoots.Add(path);
-        Settings.ScanRoots = ScanRoots.ToList();
+        Settings.ScanDirectories = ScanRoots.ToList();
         PersistSettings();
     }
 
@@ -261,18 +261,18 @@ public sealed partial class MainViewModel : ObservableObject
         var match = ScanRoots.FirstOrDefault(r => r.Equals(path, StringComparison.OrdinalIgnoreCase));
         if (match is null) return;
         ScanRoots.Remove(match);
-        Settings.ScanRoots = ScanRoots.ToList();
+        Settings.ScanDirectories = ScanRoots.ToList();
         PersistSettings();
     }
 
     public void PersistSettings()
     {
-        Settings.LlmProvider = LlmProvider;
+        Settings.InferenceProvider = LlmProvider;
         Settings.LmStudioBaseUrl = LmStudioBaseUrl;
-        Settings.SelectedLmStudioModelId = SelectedLmStudioModelId;
+        Settings.LmStudioSelectedModelId = SelectedLmStudioModelId;
         Settings.Theme = SelectedTheme;
         Settings.Language = SelectedLanguage;
-        Settings.FloatingDockSide = FloatingDockSide;
+        Settings.DockSide = FloatingDockSide;
         _settingsStore.Save(Settings);
     }
 }

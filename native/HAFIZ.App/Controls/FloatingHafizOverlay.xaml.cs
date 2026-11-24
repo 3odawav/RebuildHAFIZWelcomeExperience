@@ -18,7 +18,7 @@ public sealed partial class FloatingHafizOverlay : UserControl
         InitializeComponent();
     }
 
-    public void SyncVisualState(AvatarLifecycleState state, ExpressionId expression, string statusLabel)
+    public void SyncVisualState(AvatarActivityState state, ExpressionId expression, string statusLabel)
     {
         MiniAvatar.SetState(state, expression);
         AssistantStatusText.Text = statusLabel;
@@ -38,7 +38,7 @@ public sealed partial class FloatingHafizOverlay : UserControl
     private void OnListenToggleClick(object sender, RoutedEventArgs e)
     {
         _isListening = !_isListening;
-        var nextState = _isListening ? AvatarLifecycleState.Listening : AvatarLifecycleState.Idle;
+        var nextState = _isListening ? AvatarActivityState.Listening : AvatarActivityState.Idle;
         MiniAvatar.SetState(nextState);
         if (ViewModel is not null)
         {

@@ -7,7 +7,7 @@ namespace HAFIZ.Backend.Orchestration;
 
 public sealed record TaskRoutePlan(
     string TaskKind,
-    LlmProviderMode SelectedProvider,
+    LocalInferenceProvider SelectedProvider,
     string WorkerId,
     string TargetModelId,
     bool RequiresHeavyVramSlot,
@@ -44,18 +44,18 @@ public sealed class SmartInferenceOrchestrator
     {
         if (capability is ModelCapability.AssistantLlm or ModelCapability.SongwritingLlm or ModelCapability.CodeAndAnalysisLlm)
         {
-            if (settings.LlmProvider == LlmProviderMode.LmStudioLocalApi)
+            if (settings.InferenceProvider == LocalInferenceProvider.LmStudioExternal)
             {
                 var discovery = await _lmStudio.DiscoverModelsAsync(settings.LmStudioBaseUrl, ct: ct);
-                var chosen = !string.IsNullOrWhiteSpace(settings.SelectedLmStudioModelId)
-                    ? settings.SelectedLmStudioModelId
+                var chosen = !string.IsNullOrWhiteSpace(settings.LmStudioSelectedModelId)
+                    ? settings.LmStudioSelectedModelId
                     : discovery.Models.FirstOrDefault(m => m.State.Equals("loaded", StringComparison.OrdinalIgnoreCase))?.Id
                       ?? discovery.Models.FirstOrDefault()?.Id
                       ?? "lmstudio-unselected";
 
                 return new TaskRoutePlan(
                     capability.ToString(),
-                    LlmProviderMode.LmStudioLocalApi,
+                    LocalInferenceProvider.LmStudioExternal,
                     "external-lmstudio",
                     chosen,
                     RequiresHeavyVramSlot: false,
@@ -74,7 +74,7 @@ public sealed class SmartInferenceOrchestrator
 
             return new TaskRoutePlan(
                 capability.ToString(),
-                LlmProviderMode.HafizManagedLlamaCpp,
+                LocalInferenceProvider.EmbeddedLlamaCpp,
                 "hafiz-llama-server",
                 modelId,
                 RequiresHeavyVramSlot: true,
@@ -86,7 +86,7 @@ public sealed class SmartInferenceOrchestrator
         {
             ModelCapability.SpeechToText => new TaskRoutePlan(
                 "SpeechToText",
-                settings.LlmProvider,
+                settings.InferenceProvider,
                 "hafiz-transcribe-cpp",
                 "cohere-transcribe-03-2026-q4_0.gguf",
                 RequiresHeavyVramSlot: false,
@@ -95,7 +95,7 @@ public sealed class SmartInferenceOrchestrator
 
             ModelCapability.TextToSpeech => new TaskRoutePlan(
                 "TextToSpeech",
-                settings.LlmProvider,
+                settings.InferenceProvider,
                 "hafiz-egyptian-tts",
                 "voicetut-egyptian-tashkeel",
                 RequiresHeavyVramSlot: false,
@@ -104,7 +104,7 @@ public sealed class SmartInferenceOrchestrator
 
             ModelCapability.VoiceConversion => new TaskRoutePlan(
                 "VoiceConversion",
-                settings.LlmProvider,
+                settings.InferenceProvider,
                 "hafiz-seed-vc",
                 "seed-vc-singing",
                 RequiresHeavyVramSlot: true,
@@ -113,7 +113,7 @@ public sealed class SmartInferenceOrchestrator
 
             ModelCapability.StemSeparation => new TaskRoutePlan(
                 "StemSeparation",
-                settings.LlmProvider,
+                settings.InferenceProvider,
                 "hafiz-stems-worker",
                 "bs-roformer+htdemucs_6s",
                 RequiresHeavyVramSlot: true,
@@ -122,7 +122,7 @@ public sealed class SmartInferenceOrchestrator
 
             _ => new TaskRoutePlan(
                 capability.ToString(),
-                settings.LlmProvider,
+                settings.InferenceProvider,
                 "hafiz-vad-onnx",
                 "silero-vad-onnx",
                 RequiresHeavyVramSlot: false,
@@ -136,19 +136,19 @@ public sealed class SmartInferenceOrchestrator
         AppSettings settings,
         CancellationToken ct = default)
     {
-        if (plan.SelectedProvider == LlmProviderMode.LmStudioLocalApi && plan.WorkerId == "external-lmstudio")
+        if (plan.SelectedProvider == LocalInferenceProvider.LmStudioExternal && plan.WorkerId == "external-lmstudio")
         {
             return new GpuAdmissionDecision(true, "Managed externally by LM Studio; HAFIZ did not modify external VRAM.", Array.Empty<string>(), true);
         }
 
-        _gpuGuard.SafetyMarginMb = settings.VramSafetyMarginMb;
+        _gpuGuard.SafetyMarginMb = (int)Math.Round(settings.VramSafetyMarginGb * 1024);
         _gpuGuard.IdleUnloadSeconds = settings.IdleUnloadTimeoutSeconds;
 
         var decision = await _gpuGuard.EvaluateAdmissionAsync(
             plan.WorkerId,
             plan.EstimatedVramMb,
             plan.RequiresHeavyVramSlot,
-            settings.ProtectExternalGpuWorkloads,
+            true,
             ct);
 
         if (!decision.Allowed)

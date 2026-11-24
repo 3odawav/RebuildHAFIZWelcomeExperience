@@ -30,7 +30,7 @@ public sealed class HafizNativeTests
     {
         var analyzer = new AudioVisemeAnalyzer();
         var silence = new float[512];
-        var viseme = analyzer.AnalyzeFrame(silence);
+        var viseme = analyzer.AnalyzePcmFrame(silence, false).PrimaryExpression;
         Assert.Equal(ExpressionId.Neutral, viseme);
 
         // Loud vowel-like low-ZCR sine burst should open mouth
@@ -39,7 +39,7 @@ public sealed class HafizNativeTests
         {
             vowel[i] = 0.45f * MathF.Sin(2f * MathF.PI * 220f * i / 16000f);
         }
-        var active = analyzer.AnalyzeFrame(vowel);
+        var active = analyzer.AnalyzePcmFrame(vowel, true).PrimaryExpression;
         Assert.NotEqual(ExpressionId.Neutral, active);
     }
 
@@ -47,10 +47,10 @@ public sealed class HafizNativeTests
     public void AvatarMotionController_StopsSpeakingImmediately()
     {
         var controller = new AvatarMotionController();
-        controller.SetState(AvatarLifecycleState.Speaking, ExpressionId.TalkingWideOpen);
+        controller.SetState(AvatarActivityState.Speaking, ExpressionId.TalkingWideOpen);
         controller.StopSpeakingImmediately();
         var frame = controller.Step(0.016);
-        Assert.Equal(ExpressionId.Neutral, frame.OverlayExpression);
+        Assert.Equal(ExpressionId.Neutral, frame.ActiveExpression);
     }
 
     [Fact]
@@ -73,22 +73,22 @@ public sealed class HafizNativeTests
         try
         {
             var path = Path.Combine(tempDir, "settings.json");
-            var store = new SettingsStore(path);
+            var store = new SettingsStore(tempDir);
             var settings = new AppSettings
             {
-                Theme = AppTheme.MidnightBlue,
-                Language = AppLanguage.EnglishUs,
-                FloatingDockSide = FloatingDockSide.Left,
-                LlmProvider = LlmProviderMode.LmStudioLocalApi,
+                Theme = ThemePreset.MidnightBlueAi,
+                Language = UiLanguage.EnglishUs,
+                DockSide = AssistantDockSide.Left,
+                InferenceProvider = LocalInferenceProvider.LmStudioExternal,
                 LmStudioBaseUrl = "http://127.0.0.1:1234"
             };
             store.Save(settings);
 
             var reloaded = store.Load();
-            Assert.Equal(AppTheme.MidnightBlue, reloaded.Theme);
-            Assert.Equal(AppLanguage.EnglishUs, reloaded.Language);
-            Assert.Equal(FloatingDockSide.Left, reloaded.FloatingDockSide);
-            Assert.Equal(LlmProviderMode.LmStudioLocalApi, reloaded.LlmProvider);
+            Assert.Equal(ThemePreset.MidnightBlueAi, reloaded.Theme);
+            Assert.Equal(UiLanguage.EnglishUs, reloaded.Language);
+            Assert.Equal(AssistantDockSide.Left, reloaded.DockSide);
+            Assert.Equal(LocalInferenceProvider.LmStudioExternal, reloaded.InferenceProvider);
         }
         finally
         {
@@ -183,11 +183,11 @@ public sealed class HafizNativeTests
     [Fact]
     public void LocalizationService_SwitchesBetweenArabicRtlAndEnglishLtr()
     {
-        var loc = new LocalizationService(AppLanguage.ArabicEgypt);
+        var loc = new LocalizationService(UiLanguage.ArabicEgypt);
         Assert.True(loc.IsRightToLeft);
         Assert.Contains("حافظ", loc.Get("App.Title"));
 
-        loc.SetLanguage(AppLanguage.EnglishUs);
+        loc.SetLanguage(UiLanguage.EnglishUs);
         Assert.False(loc.IsRightToLeft);
         Assert.Contains("HAFIZ", loc.Get("App.Title"));
     }

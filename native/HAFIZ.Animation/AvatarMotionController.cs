@@ -25,6 +25,33 @@ public sealed class AvatarMotionController
     private ExpressionId _previousExpression = ExpressionId.Neutral;
     private double _crossfade = 1.0;
 
+    private AvatarActivityState _activity;
+    private ExpressionId? _explicitMood;
+    private VisemeFrame? _viseme;
+    private double _elapsed;
+    private readonly AudioVisemeAnalyzer _analyzer = new();
+    public void SetState(AvatarActivityState state, ExpressionId? explicitMood = null)
+    {
+        _activity = state;
+        _explicitMood = explicitMood;
+        if (state != AvatarActivityState.Speaking) _viseme = null;
+    }
+    public void PushAudioSamples(ReadOnlySpan<float> samples, int sampleRate = 16000)
+    {
+        _viseme = _analyzer.AnalyzePcmFrame(samples, _activity == AvatarActivityState.Speaking);
+    }
+    public void StopSpeakingImmediately()
+    {
+        SetState(AvatarActivityState.Idle, ExpressionId.Neutral);
+        _activeExpression = _previousExpression = ExpressionId.Neutral;
+        _crossfade = 1;
+    }
+    public AvatarTransformState Step(double deltaSeconds)
+    {
+        _elapsed += Math.Max(0, deltaSeconds);
+        return Step(_elapsed, deltaSeconds, _activity, _viseme, false);
+    }
+
     public AvatarTransformState Step(
         double elapsedSeconds,
         double deltaSeconds,
@@ -32,7 +59,7 @@ public sealed class AvatarMotionController
         VisemeFrame? liveViseme,
         bool reduceMotion)
     {
-        var desired = ResolveDesiredExpression(elapsedSeconds, activity, liveViseme);
+        var desired = activity == AvatarActivityState.Speaking && liveViseme is not null ? liveViseme.PrimaryExpression : _explicitMood ?? ResolveDesiredExpression(elapsedSeconds, activity, liveViseme);
         if (desired != _activeExpression)
         {
             _previousExpression = _activeExpression;

@@ -25,35 +25,35 @@ public sealed partial class StartupStagePage : UserControl
 
     private void OnMoodSpeakingClick(object sender, RoutedEventArgs e)
     {
-        HeroAvatar.SetState(AvatarLifecycleState.Speaking, ExpressionId.TalkingWideOpen);
+        HeroAvatar.SetState(AvatarActivityState.Speaking, ExpressionId.TalkingWideOpen);
         _vm?.TriggerMood(ExpressionId.TalkingWideOpen);
     }
 
     private void OnMoodLaughingClick(object sender, RoutedEventArgs e)
     {
-        HeroAvatar.SetState(AvatarLifecycleState.Idle, ExpressionId.Laughing);
+        HeroAvatar.SetState(AvatarActivityState.Idle, ExpressionId.Laughing);
         _vm?.TriggerMood(ExpressionId.Laughing);
     }
 
     private void OnMoodSeriousClick(object sender, RoutedEventArgs e)
     {
-        HeroAvatar.SetState(AvatarLifecycleState.Idle, ExpressionId.Serious);
+        HeroAvatar.SetState(AvatarActivityState.Idle, ExpressionId.Serious);
         _vm?.TriggerMood(ExpressionId.Serious);
     }
 
     private void OnMoodCalmClick(object sender, RoutedEventArgs e)
     {
-        HeroAvatar.SetState(AvatarLifecycleState.Idle, ExpressionId.Neutral);
+        HeroAvatar.SetState(AvatarActivityState.Idle, ExpressionId.Neutral);
         _vm?.TriggerMood(ExpressionId.Neutral);
     }
 
     private void OnMicToggleClick(object sender, RoutedEventArgs e)
     {
         _listening = !_listening;
-        HeroAvatar.SetState(_listening ? AvatarLifecycleState.Listening : AvatarLifecycleState.Idle);
+        HeroAvatar.SetState(_listening ? AvatarActivityState.Listening : AvatarActivityState.Idle);
         if (_vm is not null)
         {
-            _vm.AssistantState = _listening ? AvatarLifecycleState.Listening : AvatarLifecycleState.Idle;
+            _vm.AssistantState = _listening ? AvatarActivityState.Listening : AvatarActivityState.Idle;
         }
     }
 
@@ -72,7 +72,7 @@ public sealed partial class StartupStagePage : UserControl
     {
         var input = StartupCommandBox.Text?.Trim();
         if (string.IsNullOrWhiteSpace(input)) return;
-        HeroAvatar.SetState(AvatarLifecycleState.Thinking);
+        HeroAvatar.SetState(AvatarActivityState.Thinking);
         _vm?.HandleVoiceOrTextCommand(input);
         StartupCommandBox.Text = string.Empty;
     }

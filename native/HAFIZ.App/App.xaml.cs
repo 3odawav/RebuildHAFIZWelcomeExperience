@@ -31,7 +31,7 @@ public partial class App : Application
             "HAFIZ_In_Slang");
         Directory.CreateDirectory(appDataRoot);
 
-        var settingsStore = new SettingsStore(Path.Combine(appDataRoot, "settings.json"));
+        var settingsStore = new SettingsStore(appDataRoot);
         var settings = settingsStore.Load();
         var localization = new LocalizationService(settings.Language);
         var intentRouter = new EgyptianIntentRouter();
@@ -42,7 +42,7 @@ public partial class App : Application
         var downloadManager = new ResumableDownloadManager(httpClient, Path.Combine(appDataRoot, "downloads.journal.json"));
         var gpuGuard = new GpuMemoryGuard(hardwareInspector)
         {
-            SafetyMarginMb = settings.VramSafetyMarginMb,
+            SafetyMarginMb = (int)Math.Round(settings.VramSafetyMarginGb * 1024),
             IdleUnloadSeconds = settings.IdleUnloadTimeoutSeconds
         };
         _workerSupervisor = new WorkerProcessSupervisor();

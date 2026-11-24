@@ -18,29 +18,29 @@ public sealed partial class SettingsCenterPage : UserControl
     {
         _vm = viewModel;
         LmStudioUrlBox.Text = _vm.LmStudioBaseUrl;
-        ProviderHafizRadio.IsChecked = _vm.LlmProvider == LlmProviderMode.HafizManagedLlamaCpp;
-        ProviderLmStudioRadio.IsChecked = _vm.LlmProvider == LlmProviderMode.LmStudioLocalApi;
-        StoragePathSummary.Text = $"Install Root: {_vm.Settings.InstallRootPath} • Model Storage: {_vm.Settings.ModelStoragePath} • Idle Unload: {_vm.Settings.IdleUnloadTimeoutSeconds}s";
+        ProviderHafizRadio.IsChecked = _vm.LlmProvider == LocalInferenceProvider.EmbeddedLlamaCpp;
+        ProviderLmStudioRadio.IsChecked = _vm.LlmProvider == LocalInferenceProvider.LmStudioExternal;
+        StoragePathSummary.Text = $"Install Root: {_vm.Settings.AppInstallDirectory} • Model Storage: {_vm.Settings.ModelDownloadDirectory} • Idle Unload: {_vm.Settings.IdleUnloadTimeoutSeconds}s";
         UpdateScanRootsLabel();
     }
 
-    private void OnSetArabicClick(object sender, RoutedEventArgs e) => _vm?.SetLanguage(AppLanguage.ArabicEgypt);
-    private void OnSetEnglishClick(object sender, RoutedEventArgs e) => _vm?.SetLanguage(AppLanguage.EnglishUs);
-    private void OnThemeDayClick(object sender, RoutedEventArgs e) => _vm?.SetTheme(AppTheme.DayWhiteBlue);
-    private void OnThemeNightClick(object sender, RoutedEventArgs e) => _vm?.SetTheme(AppTheme.NightGraphiteGold);
-    private void OnThemeMidnightClick(object sender, RoutedEventArgs e) => _vm?.SetTheme(AppTheme.MidnightBlue);
+    private void OnSetArabicClick(object sender, RoutedEventArgs e) => _vm?.SetLanguage(UiLanguage.ArabicEgypt);
+    private void OnSetEnglishClick(object sender, RoutedEventArgs e) => _vm?.SetLanguage(UiLanguage.EnglishUs);
+    private void OnThemeDayClick(object sender, RoutedEventArgs e) => _vm?.SetTheme(ThemePreset.DayWhiteChromeBlue);
+    private void OnThemeNightClick(object sender, RoutedEventArgs e) => _vm?.SetTheme(ThemePreset.NightGraphiteGold);
+    private void OnThemeMidnightClick(object sender, RoutedEventArgs e) => _vm?.SetTheme(ThemePreset.MidnightBlueAi);
 
     private void OnProviderHafizChecked(object sender, RoutedEventArgs e)
     {
         if (_vm is null) return;
-        _vm.LlmProvider = LlmProviderMode.HafizManagedLlamaCpp;
+        _vm.LlmProvider = LocalInferenceProvider.EmbeddedLlamaCpp;
         _vm.PersistSettings();
     }
 
     private void OnProviderLmStudioChecked(object sender, RoutedEventArgs e)
     {
         if (_vm is null) return;
-        _vm.LlmProvider = LlmProviderMode.LmStudioLocalApi;
+        _vm.LlmProvider = LocalInferenceProvider.LmStudioExternal;
         _vm.PersistSettings();
     }
 

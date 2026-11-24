@@ -37,6 +37,18 @@ public sealed class LocalizationService
             ["StatusSerious"] = ("جاد ومركّز", "Serious & Focused"),
         };
 
+    private UiLanguage _language;
+    public LocalizationService(UiLanguage language = UiLanguage.ArabicEgypt) => _language = language;
+    public void SetLanguage(UiLanguage language) => _language = language;
+    public bool IsRightToLeft => _language == UiLanguage.ArabicEgypt;
+    public string Get(string key) => Get(key switch
+    {
+        "App.Title" => "AppTitle",
+        "Startup.Greeting" => "WelcomeGreeting",
+        "Nav.SettingsCenter" => "NavSettings",
+        _ => key.Replace(".", "")
+    }, _language);
+
     public string Get(string key, UiLanguage language)
     {
         if (!Strings.TryGetValue(key, out var pair))
@@ -46,7 +58,7 @@ public sealed class LocalizationService
         return language == UiLanguage.ArabicEgypt ? pair.Ar : pair.En;
     }
 
-    public bool IsRightToLeft(UiLanguage language) => language == UiLanguage.ArabicEgypt;
+
 
     public IReadOnlyCollection<string> AllKeys => Strings.Keys.ToList();
 }

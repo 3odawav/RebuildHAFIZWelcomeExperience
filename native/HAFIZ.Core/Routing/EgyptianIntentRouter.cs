@@ -122,6 +122,27 @@ public sealed class EgyptianIntentRouter
             RequiresBackendInference: true);
     }
 
+    public RoutedAssistantIntent Route(string? rawInput)
+    {
+        var intent = Resolve(rawInput);
+        var workspace = intent.TargetWorkspace.Split('/')[0] switch
+        {
+            "LyricsStudio" => WorkspaceSection.LyricsStudio,
+            "AudioWeb" => WorkspaceSection.AudioWeb,
+            "VoiceStems" => WorkspaceSection.VoiceCloneAndStems,
+            "Settings" => WorkspaceSection.SettingsCenter,
+            _ => (WorkspaceSection?)null
+        };
+        var action = intent.ActionId switch
+        {
+            "gpu.purge_idle_hafiz_models" => AssistantActionKind.PurgeHafizVram,
+            "models.scan_local_in_place" => AssistantActionKind.ScanLocalModels,
+            _ when workspace.HasValue => AssistantActionKind.OpenWorkspace,
+            _ => AssistantActionKind.Conversation
+        };
+        return new(action, intent.ReplyAr, intent.ReplyEn, workspace);
+    }
+
     private static bool ContainsAny(string haystack, params string[] needles)
     {
         foreach (var needle in needles)

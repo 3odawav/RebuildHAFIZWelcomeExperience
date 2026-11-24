@@ -46,7 +46,7 @@ public sealed partial class LivingHafizAvatarControl : UserControl
         Unloaded += (_, _) => _frameTimer.Stop();
     }
 
-    public void SetState(AvatarLifecycleState state, ExpressionId? explicitMood = null)
+    public void SetState(AvatarActivityState state, ExpressionId? explicitMood = null)
     {
         _controller.SetState(state, explicitMood);
     }
@@ -69,28 +69,28 @@ public sealed partial class LivingHafizAvatarControl : UserControl
 
         var frame = _controller.Step(dt);
 
-        if (_baseLoaded != frame.BaseExpression)
+        if (_baseLoaded != frame.PreviousExpression)
         {
-            BaseExpressionImage.Source = GetBitmap(frame.BaseExpression);
-            _baseLoaded = frame.BaseExpression;
+            BaseExpressionImage.Source = GetBitmap(frame.PreviousExpression);
+            _baseLoaded = frame.PreviousExpression;
         }
 
-        if (_overlayLoaded != frame.OverlayExpression)
+        if (_overlayLoaded != frame.ActiveExpression)
         {
-            OverlayExpressionImage.Source = GetBitmap(frame.OverlayExpression);
-            _overlayLoaded = frame.OverlayExpression;
+            OverlayExpressionImage.Source = GetBitmap(frame.ActiveExpression);
+            _overlayLoaded = frame.ActiveExpression;
         }
 
-        OverlayExpressionImage.Opacity = frame.OverlayOpacity;
-        RigTransform.TranslateX = frame.HeadTranslateX;
-        RigTransform.TranslateY = frame.HeadTranslateY;
-        RigTransform.Rotation = frame.HeadRotationDeg;
-        RigTransform.ScaleX = frame.BreathingScale;
-        RigTransform.ScaleY = frame.BreathingScale;
+        OverlayExpressionImage.Opacity = frame.CrossfadeProgress;
+        RigTransform.TranslateX = frame.TranslateX;
+        RigTransform.TranslateY = frame.TranslateY;
+        RigTransform.Rotation = frame.RotationDegrees;
+        RigTransform.ScaleX = frame.Scale;
+        RigTransform.ScaleY = frame.Scale;
 
         OuterFrequencyHalo.Opacity = 0.28 + frame.HaloIntensity * 0.55;
-        ThinkingPulseRing.Opacity = frame.NeuralThinkingGlow > 0.05 ? 0.25 + frame.NeuralThinkingGlow * 0.65 : 0.14;
-        HaloRotation.Angle = (HaloRotation.Angle + (frame.NeuralThinkingGlow > 0.05 ? 0.9 : 0.22)) % 360.0;
+        ThinkingPulseRing.Opacity = frame.NeuralGlowActive ? 0.25 + 0.65 : 0.14;
+        HaloRotation.Angle = (HaloRotation.Angle + (frame.NeuralGlowActive ? 0.9 : 0.22)) % 360.0;
     }
 
     private void PreloadAllOfficialExpressions()
