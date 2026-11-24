@@ -1,35 +1,28 @@
 #!/usr/bin/env python3
 """
-HAFIZ Isolated Audio & Speech Worker Contract (Python 3.11+)
-Supports:
-  - Silero VAD (ONNX / PyTorch)
-  - Egyptian Arabic TTS & Tashkeel (voicetut-egyptian-tashkeel / Qwen3-TTS)
-  - Seed-VC authorized singing & voice conversion (MiniMax strictly excluded)
-  - BS-RoFormer (audio-separator) vocal isolation
-  - Demucs htdemucs_6s 6-stem separation
+HAFIZ Isolated Audio & Speech Worker Contract (Python 3.11+).
 
-Strict Hardware & Honesty Guarantees:
-  - Enforces Turing SM75 FP16 / float32 safety (never requires native BF16).
-  - Never fabricates fake audio outputs or fake progress; returns structured
-    DEPENDENCY_NOT_INSTALLED status when an optional ML engine is not yet installed.
+The current repository contains readiness probes and task contracts, not the
+actual inference adapters for Seed-VC, BS-RoFormer, Demucs, or Egyptian TTS.
+Until a verified adapter is installed, the worker must report that fact and
+must never return a successful/queued result that looks like completed work.
 """
 from __future__ import annotations
 
 import importlib.util
 import json
-import os
 import sys
 from dataclasses import dataclass, asdict
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 
 
 SUPPORTED_ENGINES = {
-    "silero_vad": {"module": "onnxruntime", "capability": "vad", "vram_mb": 128},
-    "egyptian_tts": {"module": "torch", "capability": "tts", "vram_mb": 2600},
-    "seed_vc": {"module": "torch", "capability": "voice_conversion", "vram_mb": 4400},
-    "bs_roformer": {"module": "audio_separator", "capability": "vocal_isolation", "vram_mb": 3600},
-    "demucs_6s": {"module": "demucs", "capability": "six_stems", "vram_mb": 3200},
+    "silero_vad": {"module": "onnxruntime", "capability": "vad", "vram_mb": 128, "adapter": False},
+    "egyptian_tts": {"module": "torch", "capability": "tts", "vram_mb": 2600, "adapter": False},
+    "seed_vc": {"module": "torch", "capability": "voice_conversion", "vram_mb": 4400, "adapter": False},
+    "bs_roformer": {"module": "audio_separator", "capability": "vocal_isolation", "vram_mb": 3600, "adapter": False},
+    "demucs_6s": {"module": "demucs", "capability": "six_stems", "vram_mb": 3200, "adapter": False},
 }
 
 
@@ -41,6 +34,7 @@ class EngineReadiness:
     required_module: str
     precision_policy: str
     estimated_vram_mb: int
+    adapter_implemented: bool
     status: str
 
 
@@ -49,14 +43,22 @@ def detect_engine_readiness() -> Dict[str, EngineReadiness]:
     for engine_id, meta in SUPPORTED_ENGINES.items():
         mod_name = meta["module"]
         installed = importlib.util.find_spec(mod_name) is not None
+        adapter_implemented = bool(meta.get("adapter", False))
+        if not installed:
+            status = "DEPENDENCY_NOT_INSTALLED"
+        elif not adapter_implemented:
+            status = "ENGINE_ADAPTER_NOT_IMPLEMENTED"
+        else:
+            status = "READY"
         results[engine_id] = EngineReadiness(
             engine_id=engine_id,
             capability=meta["capability"],
             installed=installed,
             required_module=mod_name,
-            precision_policy="float16 (Turing SM75 safe; no mandatory BF16)",
+            precision_policy="float16 where validated (Turing SM75; no mandatory BF16)",
             estimated_vram_mb=meta["vram_mb"],
-            status="READY" if installed else "DEPENDENCY_NOT_INSTALLED",
+            adapter_implemented=adapter_implemented,
+            status=status,
         )
     return results
 
@@ -69,6 +71,27 @@ def validate_sm75_precision(requested_dtype: str) -> str:
     if normalized in ("fp16", "float16", "half"):
         return "float16"
     return "float32"
+
+
+def _engine_not_ready(engine_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    readiness = detect_engine_readiness()[engine_id]
+    if not readiness.installed:
+        return {
+            "ok": False,
+            "code": "DEPENDENCY_NOT_INSTALLED",
+            "engine": engine_id,
+            "required_module": readiness.required_module,
+            "precision": validate_sm75_precision(str(payload.get("dtype", "float16"))),
+            "message": f"Install '{readiness.required_module}' in the isolated HAFIZ environment.",
+        }
+    return {
+        "ok": False,
+        "code": "ENGINE_ADAPTER_NOT_IMPLEMENTED",
+        "engine": engine_id,
+        "required_module": readiness.required_module,
+        "precision": validate_sm75_precision(str(payload.get("dtype", "float16"))),
+        "message": "The Python package is present, but HAFIZ has no verified inference adapter for this engine. No processing was started.",
+    }
 
 
 def execute_audio_task(task: str, payload: Dict[str, Any]) -> Dict[str, Any]:
@@ -85,32 +108,18 @@ def execute_audio_task(task: str, payload: Dict[str, Any]) -> Dict[str, Any]:
             return {"ok": False, "code": "UNSUPPORTED_ENGINE", "message": f"Unsupported stem engine: {engine}"}
         if not input_path or not Path(input_path).is_file():
             return {"ok": False, "code": "INPUT_NOT_FOUND", "message": "Input audio file does not exist."}
-
-        readiness = detect_engine_readiness()[engine]
-        if not readiness.installed:
-            return {
-                "ok": False,
-                "code": "DEPENDENCY_NOT_INSTALLED",
-                "engine": engine,
-                "required_module": readiness.required_module,
-                "precision": validate_sm75_precision(str(payload.get("dtype", "float16"))),
-                "message": f"Install '{readiness.required_module}' inside the isolated HAFIZ Python audio venv to run {engine}.",
-            }
-        return {
-            "ok": True,
-            "code": "READY_TO_DISPATCH",
-            "engine": engine,
-            "input_path": input_path,
-            "precision": validate_sm75_precision(str(payload.get("dtype", "float16"))),
-        }
+        return _engine_not_ready(engine, payload)
 
     if task == "voice_convert":
-        if str(payload.get("engine", "seed_vc")).strip().lower() == "minimax":
+        engine = str(payload.get("engine", "seed_vc")).strip().lower()
+        if engine == "minimax":
             return {
                 "ok": False,
                 "code": "FORBIDDEN_BACKEND",
                 "message": "MiniMax cover backend is explicitly disallowed; use authorized local Seed-VC.",
             }
+        if engine != "seed_vc":
+            return {"ok": False, "code": "UNSUPPORTED_ENGINE", "message": f"Unsupported voice engine: {engine}"}
         if not payload.get("authorized_consent", False):
             return {
                 "ok": False,
@@ -123,39 +132,13 @@ def execute_audio_task(task: str, payload: Dict[str, Any]) -> Dict[str, Any]:
             return {"ok": False, "code": "SOURCE_NOT_FOUND", "message": "Source audio file does not exist."}
         if not reference_path or not Path(reference_path).is_file():
             return {"ok": False, "code": "REFERENCE_NOT_FOUND", "message": "Authorized reference voice file does not exist."}
-
-        readiness = detect_engine_readiness()["seed_vc"]
-        if not readiness.installed:
-            return {
-                "ok": False,
-                "code": "DEPENDENCY_NOT_INSTALLED",
-                "engine": "seed_vc",
-                "required_module": readiness.required_module,
-                "precision": validate_sm75_precision(str(payload.get("dtype", "float16"))),
-                "message": "Install isolated PyTorch CUDA (cu124 SM75) + Seed-VC weights to run voice conversion.",
-            }
-        return {
-            "ok": True,
-            "code": "READY_TO_DISPATCH",
-            "engine": "seed_vc",
-            "precision": validate_sm75_precision(str(payload.get("dtype", "float16"))),
-        }
+        return _engine_not_ready("seed_vc", payload)
 
     if task == "tts":
         text = str(payload.get("text", "")).strip()
         if not text:
             return {"ok": False, "code": "EMPTY_TEXT", "message": "Text is required for Egyptian TTS."}
-        readiness = detect_engine_readiness()["egyptian_tts"]
-        if not readiness.installed:
-            return {
-                "ok": False,
-                "code": "DEPENDENCY_NOT_INSTALLED",
-                "engine": "egyptian_tts",
-                "required_module": readiness.required_module,
-                "precision": validate_sm75_precision(str(payload.get("dtype", "float16"))),
-                "message": "Install isolated PyTorch CUDA + voicetut-egyptian-tashkeel weights for local Egyptian speech synthesis.",
-            }
-        return {"ok": True, "code": "READY_TO_DISPATCH", "engine": "egyptian_tts", "length": len(text)}
+        return _engine_not_ready("egyptian_tts", payload)
 
     return {"ok": False, "code": "UNKNOWN_TASK", "message": f"Unknown audio worker task: {task}"}
 
