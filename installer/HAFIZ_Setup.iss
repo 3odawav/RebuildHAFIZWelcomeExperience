@@ -99,9 +99,9 @@ end;
 function GetDefaultModelStoragePath(Param: String): String;
 begin
   // Keep the preferred E: model volume when available, then D:, then LocalAppData.
-  if DirExists('E:\\') then
+  if DirExists('E:\') then
     Result := 'E:\HAFIZ_Models'
-  else if DirExists('D:\\') then
+  else if DirExists('D:\') then
     Result := 'D:\HAFIZ_Models'
   else
     Result := ExpandConstant('{localappdata}\HAFIZ_Models');
