@@ -67,6 +67,38 @@ Write-Host "PRI tasks: $($PriTasks.FullName)"
     "/p:PublishDir=$PublishDir\" 
 if ($LASTEXITCODE -ne 0) { throw "Native WinUI publish failed" }
 
+# Unpackaged WinUI publish may omit the application's generated PRI and XBF resources.
+# Preserve the exact resource paths produced by this build before creating the installer.
+$BuildOutputDir = Join-Path (Split-Path $AppCsproj -Parent) "bin\x64\$Configuration\net8.0-windows10.0.22621.0\win-x64"
+$AppPri = Join-Path $BuildOutputDir "HAFIZ.pri"
+if (-not (Test-Path -LiteralPath $AppPri -PathType Leaf)) {
+    throw "WinUI application resource index was not generated: $AppPri"
+}
+Copy-Item -LiteralPath $AppPri -Destination (Join-Path $PublishDir "HAFIZ.pri") -Force
+$XamlResources = @(Get-ChildItem -LiteralPath $BuildOutputDir -Filter "*.xbf" -Recurse -File | Where-Object {
+    -not $_.FullName.StartsWith($PublishDir + "\", [System.StringComparison]::OrdinalIgnoreCase)
+})
+foreach ($Resource in $XamlResources) {
+    $RelativePath = $Resource.FullName.Substring($BuildOutputDir.Length).TrimStart('\')
+    $Destination = Join-Path $PublishDir $RelativePath
+    New-Item -ItemType Directory -Force -Path (Split-Path $Destination -Parent) | Out-Null
+    Copy-Item -LiteralPath $Resource.FullName -Destination $Destination -Force
+}
+$RequiredResources = @(
+    "HAFIZ.pri", "App.xbf", "MainWindow.xbf",
+    "Themes\ThemeResources.xbf",
+    "Controls\FloatingHafizOverlay.xbf", "Controls\LivingHafizAvatarControl.xbf",
+    "Views\StartupStagePage.xbf", "Views\LyricsStudioPage.xbf",
+    "Views\AudioWebPage.xbf", "Views\VoiceStemsPage.xbf", "Views\SettingsCenterPage.xbf"
+)
+foreach ($RequiredResource in $RequiredResources) {
+    $ResourcePath = Join-Path $PublishDir $RequiredResource
+    if (-not (Test-Path -LiteralPath $ResourcePath -PathType Leaf) -or (Get-Item -LiteralPath $ResourcePath).Length -eq 0) {
+        throw "Publish is missing a required WinUI startup resource: $RequiredResource"
+    }
+}
+Write-Host "Verified WinUI application PRI and compiled XAML resources." -ForegroundColor Green
+
 $ExePath = Join-Path $PublishDir "HAFIZ.exe"
 if (-not (Test-Path $ExePath)) {
     throw "Expected native executable was not produced at $ExePath"
