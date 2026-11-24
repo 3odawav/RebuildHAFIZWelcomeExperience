@@ -26,8 +26,10 @@ $InstallerScript = Join-Path $RepoRoot "installer\HAFIZ_Setup.iss"
 $ChecksumFile = Join-Path $RepoRoot "artifacts\SHA256SUMS.txt"
 
 Write-Host "==> Verifying .NET SDK..." -ForegroundColor Cyan
-Push-Location $RepoRoot
-try { dotnet --info | Select-Object -First 8 } finally { Pop-Location }
+Set-Location $RepoRoot
+$sdkVersion = dotnet --version
+if ($sdkVersion -notmatch '^8\.') { throw "Expected .NET 8 SDK, found $sdkVersion" }
+dotnet --info | Select-Object -First 8
 
 Write-Host "==> Restoring native WinUI 3 solution..." -ForegroundColor Cyan
 dotnet restore $NativeSln -r win-x64
@@ -40,14 +42,30 @@ python -m unittest discover -s (Join-Path $RepoRoot "backend\workers") -v
 
 Write-Host "==> Publishing self-contained unpackaged WinUI 3 HAFIZ.exe (win-x64)..." -ForegroundColor Cyan
 if (Test-Path $PublishDir) { Remove-Item -Recurse -Force $PublishDir }
-dotnet publish $AppCsproj `
-    -c $Configuration `
-    -r win-x64 `
-    -p:Platform=x64 `
-    -p:SelfContained=true `
-    -p:WindowsPackageType=None `
-    -p:WindowsAppSDKSelfContained=true `
-    -o $PublishDir
+# Windows App SDK 1.6 requires the Visual Studio PRI build tasks.
+$VsWhere = Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio\Installer\vswhere.exe"
+if (-not (Test-Path $VsWhere)) { throw "Visual Studio Installer (vswhere.exe) is required for WinUI 3 publishing." }
+$VsInstallations = @(& $VsWhere -products '*' -requires Microsoft.Component.MSBuild -property installationPath)
+$MSBuild = $null
+$PriTasks = $null
+foreach ($VsRoot in $VsInstallations) {
+    $Candidate = Join-Path $VsRoot "MSBuild\Current\Bin\amd64\MSBuild.exe"
+    if (-not (Test-Path $Candidate)) { $Candidate = Join-Path $VsRoot "MSBuild\Current\Bin\MSBuild.exe" }
+    $PriCandidate = Get-ChildItem (Join-Path $VsRoot "MSBuild\Microsoft\VisualStudio") -Filter "Microsoft.Build.Packaging.Pri.Tasks.dll" -Recurse -File -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ((Test-Path $Candidate) -and $PriCandidate) { $MSBuild = $Candidate; $PriTasks = $PriCandidate; break }
+}
+if (-not $MSBuild) { throw "Visual Studio MSBuild with Appx/PRI packaging tools is required. Install the Windows application development workload." }
+Write-Host "Using Visual Studio MSBuild: $MSBuild"
+Write-Host "PRI tasks: $($PriTasks.FullName)"
+& $MSBuild $AppCsproj /restore /t:Publish /m /nologo `
+    "/p:Configuration=$Configuration" `
+    /p:RuntimeIdentifier=win-x64 `
+    /p:Platform=x64 `
+    /p:SelfContained=true `
+    /p:WindowsPackageType=None `
+    /p:WindowsAppSDKSelfContained=true `
+    "/p:PublishDir=$PublishDir\" 
+if ($LASTEXITCODE -ne 0) { throw "Native WinUI publish failed" }
 
 $ExePath = Join-Path $PublishDir "HAFIZ.exe"
 if (-not (Test-Path $ExePath)) {
@@ -70,7 +88,7 @@ if (-not $SkipInstaller) {
 
     if ($Iscc) {
         Write-Host "==> Compiling HAFIZ_Setup.exe with Inno Setup 6..." -ForegroundColor Cyan
-        & $Iscc.FullName $InstallerScript
+        & $(if ($Iscc -is [System.IO.FileInfo]) { $Iscc.FullName } else { $Iscc.Source }) $InstallerScript
         $SetupExe = Join-Path $RepoRoot "artifacts\installer\HAFIZ_Setup.exe"
         if (-not (Test-Path $SetupExe)) {
             throw "Inno Setup completed without producing $SetupExe"
@@ -79,7 +97,7 @@ if (-not $SkipInstaller) {
         $ChecksumLines += "$SetupHash  artifacts/installer/HAFIZ_Setup.exe"
         Write-Host "Built installer: $SetupExe" -ForegroundColor Green
     } else {
-        Write-Warning "Inno Setup 6 (ISCC.exe) not installed. Skipped HAFIZ_Setup.exe compilation."
+        throw "Inno Setup 6 is required unless -SkipInstaller is specified."
     }
 }
 
