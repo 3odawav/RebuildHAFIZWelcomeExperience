@@ -28,7 +28,7 @@ $ChecksumFile = Join-Path $RepoRoot "artifacts\SHA256SUMS.txt"
 Write-Host "==> Verifying .NET SDK..." -ForegroundColor Cyan
 Set-Location $RepoRoot
 $sdkVersion = dotnet --version
-if ($sdkVersion -notmatch '^8\.') { throw "Expected .NET 10 LTS SDK, found $sdkVersion" }
+if ($sdkVersion -notmatch '^10\.') { throw "Expected .NET 10 LTS SDK, found $sdkVersion" }
 dotnet --info | Select-Object -First 8
 
 Write-Host "==> Restoring native WinUI 3 solution..." -ForegroundColor Cyan
