@@ -78,6 +78,13 @@ var
   ModelStrategyPage: TInputOptionWizardPage;
   ScanRootsPage: TInputQueryWizardPage;
 
+function JsonEscape(const Value: String): String;
+begin
+  Result := Value;
+  StringChangeEx(Result, '\', '\\', True);
+  StringChangeEx(Result, '"', '\"', True);
+end;
+
 procedure InitializeWizard;
 begin
   // Step: Select Model Storage Path (default E:\HAFIZ_Models)
@@ -93,7 +100,7 @@ begin
   ModelStoragePage.Values[0] := 'E:\HAFIZ_Models';
 
   // Step: 3-Way Model Strategy (Download / Scan Partitions / Hybrid)
-  ModelStrategyPage := CreateInputOptionWizardPage(
+  ModelStrategyPage := CreateInputOptionPage(
     ModelStoragePage.ID,
     ExpandConstant('{cm:StrategyTitle}'),
     ExpandConstant('{cm:StrategySub}'),
@@ -107,7 +114,7 @@ begin
   ModelStrategyPage.SelectedValueIndex := 1; // Default: Scan existing local drives in-place
 
   // Step: Multi-drive scan paths
-  ScanRootsPage := CreateInputQueryWizardPage(
+  ScanRootsPage := CreateInputQueryPage(
     ModelStrategyPage.ID,
     'Local Model Partitions & LM Studio Path',
     'Specify semicolon-separated drives or folders to scan in-place without moving files.',
@@ -134,12 +141,12 @@ begin
     BootstrapPath := ExpandConstant('{localappdata}\HAFIZ_In_Slang\installer-bootstrap.json');
     JsonContent :=
       '{' + #13#10 +
-      '  "installRootPath": "' + StringChange(ExpandConstant('{app}'), '\', '\\') + '",' + #13#10 +
-      '  "modelStoragePath": "' + StringChange(ModelStoragePage.Values[0], '\', '\\') + '",' + #13#10 +
+      '  "installRootPath": "' + JsonEscape(ExpandConstant('{app}')) + '",' + #13#10 +
+      '  "modelStoragePath": "' + JsonEscape(ModelStoragePage.Values[0]) + '",' + #13#10 +
       '  "modelSetupStrategy": "' + StrategyName + '",' + #13#10 +
-      '  "scanRootsRaw": "' + StringChange(ScanRootsPage.Values[0], '\', '\\') + '",' + #13#10 +
+      '  "scanRootsRaw": "' + JsonEscape(ScanRootsPage.Values[0]) + '",' + #13#10 +
       '  "preserveUserFilesOnUninstall": true' + #13#10 +
       '}';
-    SaveStringToFile(BootstrapPath, JsonContent, False);
+    SaveStringToFile(BootstrapPath, Utf8Encode(JsonContent), False);
   end;
 end;
