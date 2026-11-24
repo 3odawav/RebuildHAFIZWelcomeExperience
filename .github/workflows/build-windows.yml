@@ -37,6 +37,10 @@ jobs:
         shell: pwsh
         run: ./scripts/build-windows.ps1 -Configuration Release
 
+      - name: Runtime smoke-test published app and installed setup package
+        shell: pwsh
+        run: ./scripts/smoke-test-windows.ps1 -PublishDirectory artifacts/win-x64/publish -InstallerPath artifacts/installer/HAFIZ_Setup.exe
+
       - name: Upload Native Windows Artifacts
         uses: actions/upload-artifact@v4
         with:
