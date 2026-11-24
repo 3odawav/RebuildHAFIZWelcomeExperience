@@ -1,0 +1,70 @@
+<UserControl
+    x:Class="HAFIZ.App.Controls.LivingHafizAvatarControl"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Native WinUI 3 2D/2.5D Multi-Expression Living HAFIZ Control:
+         Uses all 18 official transparent HAFIZ expression PNGs with dual-layer smooth crossfade,
+         subtle rigid head breathing/sway/nod (zero pixel stretching), electric-blue Matrix halo,
+         and calm cyan neural thinking ring. -->
+    <Grid x:Name="AvatarRoot" HorizontalAlignment="Center" VerticalAlignment="Center">
+        <!-- Electric-blue Matrix Frequency Halo behind transparent portrait -->
+        <Ellipse
+            x:Name="OuterFrequencyHalo"
+            Width="356"
+            Height="356"
+            Stroke="{ThemeResource HafizMatrixHaloBrush}"
+            StrokeThickness="2"
+            Opacity="0.45">
+            <Ellipse.Fill>
+                <RadialGradientBrush>
+                    <GradientStop Color="#4400C8FF" Offset="0.0" />
+                    <GradientStop Color="#1A0078D4" Offset="0.55" />
+                    <GradientStop Color="#00000000" Offset="1.0" />
+                </RadialGradientBrush>
+            </Ellipse.Fill>
+        </Ellipse>
+
+        <!-- Thinking / Neural Pulse Ring -->
+        <Ellipse
+            x:Name="ThinkingPulseRing"
+            Width="332"
+            Height="332"
+            Stroke="{ThemeResource HafizAccentGlowBrush}"
+            StrokeThickness="1.5"
+            StrokeDashArray="6,4"
+            Opacity="0.35"
+            RenderTransformOrigin="0.5,0.5">
+            <Ellipse.RenderTransform>
+                <RotateTransform x:Name="HaloRotation" Angle="0" />
+            </Ellipse.RenderTransform>
+        </Ellipse>
+
+        <!-- Dual-Layer Crossfading Transparent Official Portrait (Zero Box, Zero Card Border) -->
+        <Grid
+            x:Name="PortraitRigContainer"
+            Width="316"
+            Height="316"
+            RenderTransformOrigin="0.5,0.82">
+            <Grid.RenderTransform>
+                <CompositeTransform
+                    x:Name="RigTransform"
+                    TranslateX="0"
+                    TranslateY="0"
+                    Rotation="0"
+                    ScaleX="1"
+                    ScaleY="1" />
+            </Grid.RenderTransform>
+
+            <Image
+                x:Name="BaseExpressionImage"
+                Stretch="Uniform"
+                Opacity="1.0" />
+
+            <Image
+                x:Name="OverlayExpressionImage"
+                Stretch="Uniform"
+                Opacity="0.0" />
+        </Grid>
+    </Grid>
+</UserControl>

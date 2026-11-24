@@ -1,0 +1,71 @@
+<UserControl
+    x:Class="HAFIZ.App.Views.LyricsStudioPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <Grid Padding="24" RowSpacing="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Spacing="4">
+            <TextBlock Style="{StaticResource HafizSectionTitleStyle}" Text="استوديو الكلمات — Lyrics Studio" />
+            <TextBlock
+                Foreground="{ThemeResource HafizTextSecondaryBrush}"
+                Text="تشكيل عامي مصري، كتابة أغاني، ضبط القوافي، إعادة الصياغة، الإملاء، والنطق المصري" />
+        </StackPanel>
+
+        <Grid Grid.Row="1" ColumnSpacing="16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="2*" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0" Style="{StaticResource HafizCardStyle}">
+                <Grid RowSpacing="12">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8">
+                        <Button Click="OnDiacritizeClick" Style="{StaticResource AccentButtonStyle}" Content="تشكيل عامي مصري" />
+                        <Button Click="OnRhymeCheckClick" Content="فحص القافية والوزن" />
+                        <Button Click="OnRewriteClick" Content="إعادة صياغة" />
+                        <Button Click="OnSpeakLyricsClick" Content="🔊 نطق مصري" />
+                    </StackPanel>
+
+                    <TextBox
+                        x:Name="LyricsEditor"
+                        Grid.Row="1"
+                        AcceptsReturn="True"
+                        TextWrapping="Wrap"
+                        FontSize="16"
+                        PlaceholderText="اكتب كلمات الأغنية بالعامية المصرية هنا..." />
+
+                    <TextBlock
+                        x:Name="LyricsStatusText"
+                        Grid.Row="2"
+                        Foreground="{ThemeResource HafizTextSecondaryBrush}"
+                        Text="جاهز للكتابة والتشكيل المحلي" />
+                </Grid>
+            </Border>
+
+            <Border Grid.Column="1" Style="{StaticResource HafizCardStyle}">
+                <StackPanel Spacing="12">
+                    <TextBlock FontSize="15" FontWeight="SemiBold" Text="إخراج وتصدير — Prompt &amp; Export" />
+                    <TextBox
+                        x:Name="PromptOutputBox"
+                        AcceptsReturn="True"
+                        TextWrapping="Wrap"
+                        Height="240"
+                        IsReadOnly="True"
+                        PlaceholderText="المخرجات والبرومبت الموسيقي ستظهر هنا..." />
+                    <Button Click="OnExportTextClick" Content="حفظ كملف نصي (.txt)" />
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

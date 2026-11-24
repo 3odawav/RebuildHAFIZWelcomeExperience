@@ -123,6 +123,18 @@ test('listening pose keeps lips closed while lifting eyebrows and reacting to mi
   assert.ok(loudAvg > quietAvg, 'side waveforms should respond to mic energy')
 })
 
+test('laughing and serious moods produce distinct organic facial expressions and head posture', () => {
+  const laugh = sampleAvatarPose('laughing', 1.4)
+  const serious = sampleAvatarPose('serious', 1.4)
+
+  assert.ok(laugh.smirk > 0.8, 'laughing should produce a strong cheerful smile')
+  assert.ok(laugh.mouthOpen > 0.15, 'laughing should open mouth playfully')
+  assert.ok(laugh.browLift > 0.5, 'laughing should lift eyebrows cheerfully')
+  assert.equal(serious.mouthOpen, 0)
+  assert.equal(serious.smirk, 0)
+  assert.ok(serious.headPitchDeg < -1.5, 'serious mood should hold a firm focused forward pitch')
+})
+
 test('resolveHafizIntent routes Egyptian Arabic and English requests to the right workspace', () => {
   assert.equal(resolveHafizIntent('عاوز اكتب أغنية جديدة').route, 'studio/songwriting')
   assert.equal(resolveHafizIntent('افتح التشكيل بالعامية').route, 'studio/diacritics')

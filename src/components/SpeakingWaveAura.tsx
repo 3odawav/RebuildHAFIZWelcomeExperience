@@ -16,7 +16,7 @@ export function SpeakingWaveAura({ state, speechBeatAt, micEnergy }: SpeakingWav
   const propsRef = useRef({ state, speechBeatAt, micEnergy })
   propsRef.current = { state, speechBeatAt, micEnergy }
 
-  const active = state === 'speaking' || state === 'listening'
+  const active = state === 'speaking' || state === 'listening' || state === 'laughing'
 
   useEffect(() => {
     if (!active) return

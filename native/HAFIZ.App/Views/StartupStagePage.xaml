@@ -1,0 +1,78 @@
+<UserControl
+    x:Class="HAFIZ.App.Views.StartupStagePage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:HAFIZ.App.Controls">
+
+    <!-- Mandatory Opening Screen: Living HAFIZ Character Face Centered First -->
+    <Grid Padding="32">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Center Stage: Transparent Living HAFIZ Avatar + Mood Triggers -->
+        <StackPanel Grid.Row="0" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="16">
+            <controls:LivingHafizAvatarControl x:Name="HeroAvatar" AvatarSize="330" />
+
+            <TextBlock
+                x:Name="GreetingTitle"
+                Text="أهلاً بيك في حافظ بالعامية"
+                FontSize="28"
+                FontWeight="Bold"
+                HorizontalAlignment="Center"
+                Foreground="{ThemeResource HafizTextPrimaryBrush}" />
+
+            <TextBlock
+                x:Name="GreetingSubtitle"
+                Text="قولي نبدأ بأغنية جديدة ولا تحليل صوت ولا فصل ستيمز؟"
+                FontSize="15"
+                HorizontalAlignment="Center"
+                Foreground="{ThemeResource HafizTextSecondaryBrush}" />
+
+            <!-- Instant Mood & Live Expression Controls -->
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="10">
+                <Button Click="OnMoodSpeakingClick" Content="🗣️ بيتكلم" />
+                <Button Click="OnMoodLaughingClick" Content="😄 مبسوط" />
+                <Button Click="OnMoodSeriousClick" Content="🕶️ مركّز" />
+                <Button Click="OnMoodCalmClick" Content="✨ هادي" />
+            </StackPanel>
+        </StackPanel>
+
+        <!-- Voice / Egyptian Command Input Bar -->
+        <Grid Grid.Row="1" MaxWidth="660" Margin="0,10,0,18" ColumnSpacing="10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <Button
+                x:Name="MicTriggerButton"
+                Grid.Column="0"
+                Click="OnMicToggleClick"
+                Style="{StaticResource AccentButtonStyle}"
+                Content="🎤 اتكلم مع حافظ" />
+
+            <TextBox
+                x:Name="StartupCommandBox"
+                Grid.Column="1"
+                PlaceholderText="اكتب أو قول: افتح استوديو الكلمات، افحص الموديلات، فضّي الرام..."
+                KeyDown="OnCommandKeyDown" />
+
+            <Button
+                Grid.Column="2"
+                Click="OnSubmitStartupCommand"
+                Content="نفّذ" />
+        </Grid>
+
+        <!-- Direct Workspace Launchers -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="12">
+            <Button Click="OnOpenLyricsClick" Padding="18,10" Content="استوديو الكلمات" />
+            <Button Click="OnOpenAudioClick" Padding="18,10" Content="الصوت والويب" />
+            <Button Click="OnOpenVoiceClick" Padding="18,10" Content="استنساخ الصوت و6-Stems" />
+            <Button Click="OnOpenSettingsClick" Padding="18,10" Content="مركز الإعدادات" />
+        </StackPanel>
+    </Grid>
+</UserControl>

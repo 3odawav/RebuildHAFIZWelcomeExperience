@@ -27,6 +27,15 @@ export interface AppTranslations {
   statusThinking: string
   statusListening: string
   statusSpeaking: string
+  statusLaughing: string
+  statusSerious: string
+  moodGroupAria: string
+  moodCalm: string
+  moodSpeaking: string
+  moodLaughing: string
+  moodSerious: string
+  startupSetupBanner: string
+  startupSetupCta: string
   micStartAria: string
   micStopAria: string
   commandInputAria: string
@@ -255,6 +264,83 @@ export interface AppTranslations {
   noticePurgeBlocked: string
   noticeReportExported: string
   noticeWizardSaved: string
+  // Themes, Comfort & Accessibility
+  themeLabel: string
+  themeMidnightBlue: string
+  themeGraphiteGold: string
+  themeLightStudio: string
+  densityLabel: string
+  densityComfortable: string
+  densityCompact: string
+  reduceMotionToggle: string
+  reduceMotionDesc: string
+  speechRateLabel: string
+  executionProfileLabel: string
+  profileBalanced: string
+  profileFast: string
+  profileCoexist: string
+  autoCheckBackendToggle: string
+  autoCheckBackendDesc: string
+  // Multi-Drive Storage, Scanner & Per-Model Advanced Location
+  appInstallDirLabel: string
+  inPlaceLinkingToggle: string
+  inPlaceLinkingDesc: string
+  downloadSpeedLimitLabel: string
+  speedUnlimited: string
+  autoResumeToggle: string
+  scanPartitionsAction: string
+  scannerTitle: string
+  scannerSubtitle: string
+  scannerSelectDrives: string
+  scannerAddFolderPlaceholder: string
+  scannerAddBtn: string
+  scannerBrowseBtn: string
+  scannerRemoveAria: string
+  scannerIndexPathLabel: string
+  scannerNoMoveBadge: string
+  scannerStartBtn: string
+  scannerScanning: string
+  scannerOfflineTitle: string
+  scannerOfflineBody: string
+  scannerFoundNone: string
+  scannerCloseAria: string
+  advancedLocationTitle: string
+  advancedLocationDesc: string
+  manualPathPlaceholder: string
+  browseLocationBtn: string
+  saveLocationBtn: string
+  resetLocationBtn: string
+  manualOverrideBadge: string
+  autoLocationBadge: string
+  inPlaceNoMoveTag: string
+  browserPickFallbackNote: string
+  setupModeTitle: string
+  setupModeScanLabel: string
+  setupModeScanDesc: string
+  setupModeHybridLabel: string
+  setupModeHybridDesc: string
+  setupModeDownloadLabel: string
+  setupModeDownloadDesc: string
+  scanPartitionsTitle: string
+  scanPartitionsDesc: string
+  quickDrivesLabel: string
+  scanPartitionsPlaceholder: string
+  addPartitionBtn: string
+  browseFolderBtn: string
+  removePartitionAria: string
+  browseSandboxNotice: string
+  // Typed Backend Connection States
+  backendStatusLabel: string
+  backendProbeBtn: string
+  backendNotConnectedShort: string
+  backendStates: {
+    DISCONNECTED: string
+    CONNECTING: string
+    READY: string
+    BUSY: string
+    ERROR: string
+    RECOVERING: string
+  }
 }
 
 export const TRANSLATIONS: Record<UiLanguage, AppTranslations> = {
@@ -302,6 +388,15 @@ export const TRANSLATIONS: Record<UiLanguage, AppTranslations> = {
     statusThinking: 'بيفكر...',
     statusListening: 'بسمعك...',
     statusSpeaking: 'بيتكلم...',
+    statusLaughing: 'بيضحك ومبسوط...',
+    statusSerious: 'جاد ومركّز',
+    moodGroupAria: 'التحكم السريع في تعبيرات وجه حافظ',
+    moodCalm: 'هادي وطبيعي',
+    moodSpeaking: 'بيتكلم',
+    moodLaughing: 'بيضحك',
+    moodSerious: 'جاد ومركّز',
+    startupSetupBanner: 'إعداد التشغيل الأول (E: / D:): تحميل النماذج أم فحص البارتيشنات بدون نقل؟',
+    startupSetupCta: 'اختر طريقة الإعداد',
     micStartAria: 'تشغيل الميكروفون',
     micStopAria: 'إيقاف الميكروفون',
     commandInputAria: 'كلم حافظ أو اكتبله يفتحلك إيه',
@@ -564,7 +659,81 @@ export const TRANSLATIONS: Record<UiLanguage, AppTranslations> = {
     noticeUnsupportedFile: 'نوع ملف غير مدعوم. اختر ملف TXT أو ملف صوت مدعوم.',
     noticePurgeBlocked: 'تعذر تنفيذ تفريغ VRAM: المحرك المحلي غير متصل. عند الاتصال سيتم تفريغ نماذج حافظ الخاملة فقط دون المساس بأي عملية خارجية.',
     noticeReportExported: 'تم تصدير تقرير التشخيص (JSON) بالبيانات الحقيقية وحالة كل فحص.',
-    noticeWizardSaved: 'تم حفظ إعدادات معالج التهيئة ومسار النماذج محليًا في المتصفح.',
+    noticeWizardSaved: 'تم حفظ إعدادات التثبيت وفحص البارتيشنات محليًا في المتصفح.',
+    themeLabel: 'المظهر والسمة البصرية (نهاري / ليلي)',
+    themeMidnightBlue: 'أزرق ليلي عميق (Midnight)',
+    themeGraphiteGold: 'جرافيت وذهبي (Graphite Gold)',
+    themeLightStudio: 'نهاري أبيض وأزرق (Light Studio)',
+    densityLabel: 'كثافة مساحة العمل',
+    densityComfortable: 'مريح وواسع',
+    densityCompact: 'مضغوط (Windows Compact)',
+    reduceMotionToggle: 'تقليل حركة الخلفية للتركيز والراحة',
+    reduceMotionDesc: 'يُثبّت حروف الخط والتشكيل في الخلفية لراحة العين أثناء الكتابة الطويلة.',
+    speechRateLabel: 'سرعة نطق صوت حافظ',
+    executionProfileLabel: 'ملف أداء تشغيل النماذج (RTX 5000 · 16GB)',
+    profileBalanced: 'متوازن (RTX 5000 16GB)',
+    profileFast: 'أقصى سرعة استجابة (إبقاء دافئ)',
+    profileCoexist: 'توفير VRAM للعمل مع برامج GPU أخرى',
+    autoCheckBackendToggle: 'فحص تحديثات وتحسينات الخادم المحلي عند التشغيل',
+    autoCheckBackendDesc: 'يتحقق بشكل غير معطِّل عند توفر المحرك المحلي على ويندوز دون إيقاف البداية.',
+    appInstallDirLabel: 'مسار تثبيت البرنامج على ويندوز',
+    inPlaceLinkingToggle: 'ربط النماذج في مكانها بدون نقل أو نسخ (In-Place Linking)',
+    inPlaceLinkingDesc: 'يُسجّل حافظ النماذج الموجودة على E: أو D: في الفهرس تلقائيًا من مكانها دون نقلها أو تكرارها.',
+    downloadSpeedLimitLabel: 'الحد الأقصى لسرعة التحميل',
+    speedUnlimited: 'غير محدود',
+    autoResumeToggle: 'استئناف التحميلات تلقائيًا بعد الانقطاع أو إعادة تشغيل ويندوز',
+    scanPartitionsAction: 'فحص البارتيشنات (E:, D: ...)',
+    scannerTitle: 'فاحص البارتيشنات واكتشاف النماذج الموجودة',
+    scannerSubtitle: 'اختر بارتيشن واحد أو أكثر (مثل E: و D:) ليبحث حافظ عن ملفات النماذج المتوافقة ويربطها تلقائيًا من مكانها دون نقلها.',
+    scannerSelectDrives: 'اختر البارتيشنات أو المجلدات للفحص',
+    scannerAddFolderPlaceholder: 'أضف مسار بارتيشن أو مجلد (مثلاً D:\\AI_Models أو F:\\)',
+    scannerAddBtn: 'إضافة مسار',
+    scannerBrowseBtn: 'تصفح مجلد',
+    scannerRemoveAria: 'إزالة المسار من الفحص',
+    scannerIndexPathLabel: 'مسار حفظ فهرس النماذج المكتشفة',
+    scannerNoMoveBadge: 'ربط في المكان · لا يتم نقل أو نسخ الملفات',
+    scannerStartBtn: 'بدء فحص البارتيشنات الآن',
+    scannerScanning: 'جاري الاتصال بفاحص ويندوز المحلي...',
+    scannerOfflineTitle: 'المحرك المحلي غير متصل (Backend Not Connected)',
+    scannerOfflineBody: 'المتصفح لا يملك صلاحية مسح أقراص ويندوز مباشرة؛ تم حفظ قائمة البارتيشنات ومسار الفهرس، ولن يتم اختلاق نتائج فحص وهمية. عند تشغيل محرك ويندوز المحلي سيتم الفحص الحقيقي فورًا.',
+    scannerFoundNone: 'لم يتم اكتشاف ملفات فعلية لأن المحرك المحلي غير متصل.',
+    scannerCloseAria: 'إغلاق فاحص البارتيشنات',
+    advancedLocationTitle: 'المسار اليدوي المتقدم (Advanced Location)',
+    advancedLocationDesc: 'حدّد مجلدًا أو ملفًا مخصصًا لهذا النموذج يدويًا لتجاوز المجلد الافتراضي وربطه في مكانه.',
+    manualPathPlaceholder: 'مثلاً D:\\Models\\qwen2.5-14b.gguf أو E:\\Audio\\weights',
+    browseLocationBtn: 'تصفح (Browse)',
+    saveLocationBtn: 'حفظ المسار',
+    resetLocationBtn: 'العودة للافتراضي',
+    manualOverrideBadge: 'مسار يدوي مخصص',
+    autoLocationBadge: 'المسار الافتراضي',
+    inPlaceNoMoveTag: 'مربوط في مكانه · بدون نقل',
+    browserPickFallbackNote: 'ملاحظة: المتصفح يقرأ اسم الملف/المجلد المختار؛ لتحديد مسار القرص الكامل (مثل E:\\ أو D:\\) يمكنك كتابته مباشرة أو استخدام نافذة ويندوز الأصلية عند الاتصال.',
+    setupModeTitle: 'طريقة توفير النماذج (أثناء التثبيت EXE أو أول تشغيل)',
+    setupModeScanLabel: 'فحص البارتيشنات وربط النماذج الموجودة في مكانها (بدون نقل)',
+    setupModeScanDesc: 'اختر E: و D: وأي مجلدات أخرى ليدخلها حافظ أوتوماتيك دون نقلها أو تحميلها من جديد.',
+    setupModeHybridLabel: 'فحص البارتيشنات أولًا ثم تحميل المكونات الناقصة فقط على E:',
+    setupModeHybridDesc: 'يستفيد من كل النماذج الموجودة لديك ويحمّل الناقص فقط في مجلد التخزين.',
+    setupModeDownloadLabel: 'تحميل كل النماذج المتوافقة من البداية إلى E:',
+    setupModeDownloadDesc: 'تحميل كامل قابل للاستئناف مع التحقق من سلامة الملفات (SHA-256).',
+    scanPartitionsTitle: 'فحص البارتيشنات والمجلدات (ربط في المكان)',
+    scanPartitionsDesc: 'أضف بارتيشنات مثل E: و D: أو مجلدات LM Studio لفهرسة الموديلات بدون نقلها.',
+    quickDrivesLabel: 'بارتيشنات سريعة',
+    scanPartitionsPlaceholder: 'أضف مسار بارتيشن أو مجلد (مثلاً D:\\AI\\LMStudio-Models\\local)',
+    addPartitionBtn: 'إضافة',
+    browseFolderBtn: 'تصفح مجلد',
+    removePartitionAria: 'إزالة المسار من القائمة',
+    browseSandboxNotice: 'تمت إضافة اسم المجلد المختار؛ لتحديد المسار الكامل للقرص في المتصفح اكتبه مباشرة (مثل E:\\Models).',
+    backendStatusLabel: 'حالة المحرك المحلي',
+    backendProbeBtn: 'فحص الاتصال بالمحرك',
+    backendNotConnectedShort: 'المحرك المحلي غير متصل',
+    backendStates: {
+      DISCONNECTED: 'غير متصل (DISCONNECTED)',
+      CONNECTING: 'جاري الاتصال (CONNECTING)',
+      READY: 'جاهز (READY)',
+      BUSY: 'مشغول (BUSY)',
+      ERROR: 'خطأ اتصال (ERROR)',
+      RECOVERING: 'جاري الاستعادة (RECOVERING)',
+    },
   },
   en: {
     langCode: 'en-US',
@@ -610,6 +779,15 @@ export const TRANSLATIONS: Record<UiLanguage, AppTranslations> = {
     statusThinking: 'Thinking...',
     statusListening: 'Listening...',
     statusSpeaking: 'Speaking...',
+    statusLaughing: 'Laughing & Cheerful',
+    statusSerious: 'Serious & Focused',
+    moodGroupAria: 'Quick HAFIZ facial expression controls',
+    moodCalm: 'Calm & Natural',
+    moodSpeaking: 'Speaking',
+    moodLaughing: 'Laughing',
+    moodSerious: 'Serious',
+    startupSetupBanner: 'First-Run Setup (E: / D:): Download models or scan partitions in-place?',
+    startupSetupCta: 'Choose Setup Mode',
     micStartAria: 'Start microphone',
     micStopAria: 'Stop microphone',
     commandInputAria: 'Tell HAFIZ which tool to open',
@@ -870,9 +1048,83 @@ export const TRANSLATIONS: Record<UiLanguage, AppTranslations> = {
     noticeAudioTooLarge: 'Choose an audio file under 150 MB for browser preview.',
     noticeTxtReadError: 'The text file could not be read.',
     noticeUnsupportedFile: 'Unsupported file. Choose a TXT document or a supported audio file.',
-    noticePurgeBlocked: 'Cannot purge VRAM while offline: Windows companion is not connected. When connected, only idle HAFIZ-owned models are unloaded safely.',
+    noticePurgeBlocked: 'Cannot purge VRAM while offline: Backend Not Connected. When connected, only idle HAFIZ-owned models are unloaded safely.',
     noticeReportExported: 'Exported honest Diagnostic Report (JSON) with current verification statuses.',
-    noticeWizardSaved: 'Saved First-Run setup preferences and local model directory in this browser.',
+    noticeWizardSaved: 'Saved installation paths, partition scan list, and setup preferences in this browser.',
+    themeLabel: 'Appearance & Day/Night Theme',
+    themeMidnightBlue: 'Midnight Navy & Cyan',
+    themeGraphiteGold: 'Dark Graphite & Gold',
+    themeLightStudio: 'Day Light White & Blue',
+    densityLabel: 'Workspace Layout Density',
+    densityComfortable: 'Comfortable (Spacious)',
+    densityCompact: 'Compact (Windows Dense)',
+    reduceMotionToggle: 'Reduce background motion for focus & comfort',
+    reduceMotionDesc: 'Calms floating background calligraphy motion while keeping workspace controls crisp.',
+    speechRateLabel: 'HAFIZ Voice Speaking Speed',
+    executionProfileLabel: 'Model Execution Profile (RTX 5000 · 16GB)',
+    profileBalanced: 'Balanced (RTX 5000 16GB)',
+    profileFast: 'Maximum Responsiveness (Keep Warm)',
+    profileCoexist: 'Low VRAM Footprint (Coexist with External GPU Apps)',
+    autoCheckBackendToggle: 'Check local backend optimizations on launch',
+    autoCheckBackendDesc: 'Runs a non-blocking local check when the Windows companion is running without delaying startup.',
+    appInstallDirLabel: 'Windows Application Install Path',
+    inPlaceLinkingToggle: 'Link existing models in-place (never move or copy)',
+    inPlaceLinkingDesc: 'Registers discovered weights on E:, D:, or custom folders directly from their current location without duplication.',
+    downloadSpeedLimitLabel: 'Download Bandwidth Limit',
+    speedUnlimited: 'Unlimited',
+    autoResumeToggle: 'Auto-resume interrupted downloads after disconnect or Windows reboot',
+    scanPartitionsAction: 'Scan Partitions (E:, D: ...)',
+    scannerTitle: 'Partition Scanner & Local Model Discovery',
+    scannerSubtitle: 'Select one or more drives (such as E: and D:) to scan for compatible local model weights and register them in-place without moving files.',
+    scannerSelectDrives: 'Partitions & folders to scan',
+    scannerAddFolderPlaceholder: 'Add a drive or folder path (e.g., D:\\AI_Models or F:\\)',
+    scannerAddBtn: 'Add path',
+    scannerBrowseBtn: 'Browse folder',
+    scannerRemoveAria: 'Remove path from scan list',
+    scannerIndexPathLabel: 'Model index save location',
+    scannerNoMoveBadge: 'In-place indexing · Zero move / Zero copy',
+    scannerStartBtn: 'Start Partition Scan',
+    scannerScanning: 'Contacting local Windows scanner service...',
+    scannerOfflineTitle: 'Backend Not Connected',
+    scannerOfflineBody: 'Browser preview cannot scan local Windows NTFS drives directly. Your selected partitions and index path are saved, and zero fake scan results are fabricated. Connect the local Windows companion to execute the real disk scan.',
+    scannerFoundNone: 'No verified disk files discovered while Backend Not Connected.',
+    scannerCloseAria: 'Close partition scanner',
+    advancedLocationTitle: 'Advanced Location (Manual Override)',
+    advancedLocationDesc: 'Browse or type a custom local path for this specific model to bypass the default directory and link it in-place.',
+    manualPathPlaceholder: 'e.g., D:\\Models\\qwen2.5-14b.gguf or E:\\Audio\\weights',
+    browseLocationBtn: 'Browse',
+    saveLocationBtn: 'Save path',
+    resetLocationBtn: 'Reset to default',
+    manualOverrideBadge: 'Manual override',
+    autoLocationBadge: 'Default directory',
+    inPlaceNoMoveTag: 'Linked in-place · Not moved',
+    browserPickFallbackNote: 'Note: Browsers expose only the selected folder/file name; type a full drive path (e.g., E:\\ or D:\\) directly or pick via the native Windows dialog when connected.',
+    setupModeTitle: 'Model Provisioning Mode (EXE Setup & First Launch)',
+    setupModeScanLabel: 'Scan partitions & link existing models in-place (No move)',
+    setupModeScanDesc: 'Pick E:, D:, or custom folders so HAFIZ indexes existing weights automatically without moving or re-downloading.',
+    setupModeHybridLabel: 'Scan partitions first, then download only missing weights to E:',
+    setupModeHybridDesc: 'Reuses everything already on disk and downloads only missing compatible files.',
+    setupModeDownloadLabel: 'Fresh download of all compatible models to E:',
+    setupModeDownloadDesc: 'Resumable verified downloads (SHA-256) saved to your chosen storage folder.',
+    scanPartitionsTitle: 'Scan Partitions & Local Folders (In-Place)',
+    scanPartitionsDesc: 'Add drives such as E: and D: or LM Studio folders to index existing models without moving them.',
+    quickDrivesLabel: 'Quick drives',
+    scanPartitionsPlaceholder: 'Add a drive or folder path (e.g., D:\\AI\\LMStudio-Models\\local)',
+    addPartitionBtn: 'Add',
+    browseFolderBtn: 'Browse folder',
+    removePartitionAria: 'Remove path from scan list',
+    browseSandboxNotice: 'Added the selected folder name; to specify a full Windows drive path in browser preview, type it directly (e.g., E:\\Models).',
+    backendStatusLabel: 'Local Backend Status',
+    backendProbeBtn: 'Check Backend Connection',
+    backendNotConnectedShort: 'Backend Not Connected',
+    backendStates: {
+      DISCONNECTED: 'DISCONNECTED',
+      CONNECTING: 'CONNECTING',
+      READY: 'READY',
+      BUSY: 'BUSY',
+      ERROR: 'ERROR',
+      RECOVERING: 'RECOVERING',
+    },
   },
 }
 

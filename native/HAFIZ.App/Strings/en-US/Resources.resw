@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <data name="AppTitle" xml:space="preserve"><value>HAFIZ In Slang</value></data>
+  <data name="StartupGreeting" xml:space="preserve"><value>Welcome to HAFIZ In Slang — what shall we create?</value></data>
+  <data name="NavLyricsStudio" xml:space="preserve"><value>Lyrics Studio</value></data>
+  <data name="NavAudioWeb" xml:space="preserve"><value>Audio &amp; Web</value></data>
+  <data name="NavVoiceStems" xml:space="preserve"><value>Voice Clone &amp; 6-Stems</value></data>
+  <data name="NavSettingsCenter" xml:space="preserve"><value>Settings Center</value></data>
+</root>

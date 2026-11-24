@@ -1,0 +1,106 @@
+<UserControl
+    x:Class="HAFIZ.App.Views.SettingsCenterPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Centralized Settings Center containing ALL technical settings in one organized location:
+         1. General, 2. Assistant, 3. Speech, 4. Microphone, 5. AI Models & LM Studio, 6. Multi-Drive Scanner,
+         7. GPU & VRAM Guard, 8. Downloads, 9. Storage, 10. Audio, 11. Memory, 12. Updates, 13. Security, 14. Diagnostics -->
+    <ScrollViewer Padding="24">
+        <StackPanel Spacing="18" MaxWidth="1040">
+            <StackPanel Spacing="4">
+                <TextBlock Style="{StaticResource HafizSectionTitleStyle}" Text="مركز الإعدادات الشامل — Centralized Settings Center" />
+                <TextBlock
+                    Foreground="{ThemeResource HafizTextSecondaryBrush}"
+                    Text="كل إعدادات الواجهة، اللغات، الثيمات، LM Studio، فحص البارتيشنات بدون نقل، كارت RTX 5000 16GB، والتحميلات في مكان واحد" />
+            </StackPanel>
+
+            <!-- 1. General: Language & 3 Official Themes -->
+            <Border Style="{StaticResource HafizCardStyle}">
+                <StackPanel Spacing="12">
+                    <TextBlock FontSize="15" FontWeight="SemiBold" Text="1. العام والواجهة — General, Language &amp; Themes" />
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <Button Click="OnSetArabicClick" Content="العربية (مصر — RTL)" />
+                        <Button Click="OnSetEnglishClick" Content="English (US — LTR)" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <Button Click="OnThemeDayClick" Content="نهاري: أبيض / أزرق كروم (Day White/Blue)" />
+                        <Button Click="OnThemeNightClick" Content="ليلي: جرافيت / ذهبي (Night Graphite/Gold)" />
+                        <Button Click="OnThemeMidnightClick" Content="أزرق ليلي (Midnight Blue)" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- 2. AI Models & LM Studio Provider -->
+            <Border Style="{StaticResource HafizCardStyle}">
+                <StackPanel Spacing="12">
+                    <TextBlock FontSize="15" FontWeight="SemiBold" Text="2. مزوّد نماذج الذكاء الاصطناعي و LM Studio — AI Models &amp; Provider" />
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <RadioButton x:Name="ProviderHafizRadio" GroupName="LlmProvider" Content="HAFIZ Local llama.cpp (Recommended)" Checked="OnProviderHafizChecked" />
+                        <RadioButton x:Name="ProviderLmStudioRadio" GroupName="LlmProvider" Content="LM Studio Local API (http://127.0.0.1:1234)" Checked="OnProviderLmStudioChecked" />
+                    </StackPanel>
+                    <Grid ColumnSpacing="8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBox x:Name="LmStudioUrlBox" Grid.Column="0" Text="http://127.0.0.1:1234" PlaceholderText="LM Studio Local Base URL" />
+                        <Button Grid.Column="1" Click="OnDiscoverLmStudioClick" Style="{StaticResource AccentButtonStyle}" Content="فحص نماذج LM Studio" />
+                    </Grid>
+                    <TextBlock x:Name="LmStudioStatusText" Foreground="{ThemeResource HafizTextSecondaryBrush}" Text="LM Studio models are discovered live without modifying external loaded models." />
+                </StackPanel>
+            </Border>
+
+            <!-- 3. Multi-Drive In-Place Model Scanner (E:, D:, D:\AI\LMStudio-Models\local) -->
+            <Border Style="{StaticResource HafizCardStyle}">
+                <StackPanel Spacing="12">
+                    <TextBlock FontSize="15" FontWeight="SemiBold" Text="3. فحص البارتيشنات بدون نقل الموديلات — Multi-Drive In-Place Model Scanner" />
+                    <TextBlock
+                        Foreground="{ThemeResource HafizTextSecondaryBrush}"
+                        Text="يقوم حافظ بفهرسة الموديلات الموجودة على D:\AI\LMStudio-Models\local و E:\ و D:\ في مكانها تماماً دون نسخ أو نقل أو حذف أي ملف."
+                        TextWrapping="Wrap" />
+                    <Grid ColumnSpacing="8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBox x:Name="CustomScanPathBox" Grid.Column="0" PlaceholderText="أضف مسار بارتيشن أو مجلد (مثلاً D:\AI\LMStudio-Models\local أو E:\)..." />
+                        <Button Grid.Column="1" Click="OnAddScanRootClick" Content="إضافة مسار" />
+                        <Button Grid.Column="2" Click="OnScanDrivesClick" Style="{StaticResource AccentButtonStyle}" Content="ابدأ الفحص الآن" />
+                    </Grid>
+                    <TextBlock x:Name="ScanSummaryText" Foreground="{ThemeResource HafizTextSecondaryBrush}" Text="Default scan roots: D:\AI\LMStudio-Models\local, E:\, D:\" />
+                </StackPanel>
+            </Border>
+
+            <!-- 4. GPU & 16GB VRAM Guard (NVIDIA Quadro RTX 5000 SM75) -->
+            <Border Style="{StaticResource HafizCardStyle}">
+                <StackPanel Spacing="12">
+                    <TextBlock FontSize="15" FontWeight="SemiBold" Text="4. كارت الشاشة والذاكرة — GPU &amp; 16GB RTX 5000 VRAM Guard" />
+                    <TextBlock x:Name="GpuTelemetryDetailText" Foreground="{ThemeResource HafizTextSecondaryBrush}" Text="Hardware telemetry probing..." TextWrapping="Wrap" />
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <Button Click="OnRefreshGpuClick" Content="تحديث قراءة كارت الشاشة" />
+                        <Button Click="OnPurgeHafizVramClick" Style="{StaticResource AccentButtonStyle}" Content="تفريغ ذاكرة حافظ فقط (Purge HAFIZ VRAM)" />
+                    </StackPanel>
+                    <TextBlock
+                        Foreground="{ThemeResource HafizTextSecondaryBrush}"
+                        Text="External GPU protection active: Unsloth, LM Studio, and ComfyUI processes are never terminated or unloaded by HAFIZ."
+                        TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+
+            <!-- 5. Assistant, Speech, Microphone, Downloads, Storage, Audio, Memory, Updates, Security & Diagnostics -->
+            <Border Style="{StaticResource HafizCardStyle}">
+                <StackPanel Spacing="10">
+                    <TextBlock FontSize="15" FontWeight="SemiBold" Text="5. المساعد، الصوت، الميكروفون، التحميلات، التخزين، التحديثات، الأمان والتشخيص" />
+                    <TextBlock x:Name="StoragePathSummary" Foreground="{ThemeResource HafizTextSecondaryBrush}" Text="Install Root: E:\HAFIZ_In_Slang • Model Storage: E:\HAFIZ_Models • Mode: Local-First Loopback IPC (127.0.0.1)" TextWrapping="Wrap" />
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <Button Click="OnToggleFloatingSideClick" Content="تبديل مكان حافظ العائم (يمين / يسار)" />
+                        <Button Click="OnSaveAllSettingsClick" Content="حفظ الإعدادات نهائياً" />
+                    </StackPanel>
+                    <TextBlock x:Name="SettingsActionStatus" Foreground="{ThemeResource HafizAccentBrush}" />
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

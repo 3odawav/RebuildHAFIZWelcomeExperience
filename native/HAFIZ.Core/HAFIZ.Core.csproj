@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>HAFIZ.Core</RootNamespace>
+    <AssemblyName>HAFIZ.Core</AssemblyName>
+  </PropertyGroup>
+</Project>

@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <AssemblyName>HAFIZ.Backend</AssemblyName>
+    <RootNamespace>HAFIZ.Backend</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\HAFIZ.Core\HAFIZ.Core.csproj" />
+    <ProjectReference Include="..\HAFIZ.Infrastructure\HAFIZ.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>

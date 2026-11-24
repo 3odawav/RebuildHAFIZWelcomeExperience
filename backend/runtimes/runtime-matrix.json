@@ -1,0 +1,38 @@
+{
+  "schemaVersion": "1.0.0",
+  "matrixName": "HAFIZ Windows 11 x64 + NVIDIA Turing SM75 (Quadro RTX 5000 16GB)",
+  "autoUpdatePolicy": {
+    "blindAutoPipUpgradeAllowed": false,
+    "allowUnverifiedModelOverride": false,
+    "rollbackSupported": true,
+    "manifestChannel": "stable-turing-sm75"
+  },
+  "hardwareTarget": {
+    "os": "Windows 11 x64 (10.0.22621+)",
+    "gpu": "NVIDIA Quadro RTX 5000",
+    "computeCapability": "7.5",
+    "vramMb": 16384,
+    "safetyMarginMb": 1800,
+    "maxSafeSingleModelVramMb": 14000,
+    "bf16NativeSupported": false,
+    "requiredFloatPrecision": "float16",
+    "forbiddenBackends": ["minimax-cover"]
+  },
+  "knownGoodPins": {
+    "dotnetSdk": "8.0.x",
+    "windowsAppSdk": "1.6.250108002",
+    "pythonWorkerVersion": "3.11.9",
+    "pytorchCuda": "2.5.1+cu124",
+    "onnxRuntime": "1.20.1",
+    "audioSeparator": "0.28.x",
+    "demucs": "4.0.1",
+    "sileroVad": "5.1.2"
+  },
+  "vramOrchestration": {
+    "singleHeavyModelLock": true,
+    "idleUnloadTimeoutSeconds": 120,
+    "protectExternalGpuProcesses": ["LMStudio.exe", "lms.exe", "unsloth", "ComfyUI", "ollama.exe"],
+    "oversizedF16GuardGb": 12.0,
+    "cohereTranscribeRuntime": "transcribe.cpp"
+  }
+}

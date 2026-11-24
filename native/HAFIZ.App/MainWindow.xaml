@@ -1,0 +1,116 @@
+<Window
+    x:Class="HAFIZ.App.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:HAFIZ.App.Controls"
+    xmlns:views="using:HAFIZ.App.Views"
+    Title="HAFIZ In Slang">
+
+    <Window.SystemBackdrop>
+        <MicaBackdrop Kind="BaseAlt" />
+    </Window.SystemBackdrop>
+
+    <Grid x:Name="RootLayout" Background="{ThemeResource HafizCanvasBrush}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="38" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Native Windows 11 Custom Drag Titlebar (preserves Snap Layouts, Minimize/Maximize/Close) -->
+        <Grid
+            x:Name="AppTitleBar"
+            Grid.Row="0"
+            Padding="14,0,140,0"
+            ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <Ellipse Width="10" Height="10" Fill="{ThemeResource HafizMatrixHaloBrush}" />
+                <TextBlock
+                    x:Name="TitleBarBrandText"
+                    Text="حافظ بالعامية — HAFIZ In Slang"
+                    FontSize="13"
+                    FontWeight="SemiBold"
+                    Foreground="{ThemeResource HafizTextPrimaryBrush}" />
+            </StackPanel>
+
+            <TextBlock
+                x:Name="GpuStatusTitleText"
+                Grid.Column="1"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                FontSize="12"
+                Foreground="{ThemeResource HafizTextSecondaryBrush}"
+                Text="NVIDIA CUDA Native Studio" />
+
+            <!-- Quick Theme & Language Switchers in Titlebar Chrome -->
+            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                <Button Click="OnQuickLanguageToggle" Content="AR / EN" Padding="8,2" FontSize="11" />
+                <Button Click="OnCycleThemeClick" Content="Theme" Padding="8,2" FontSize="11" />
+            </StackPanel>
+        </Grid>
+
+        <!-- Main Content Host: Startup Stage OR Full 4-Workspace NavigationView -->
+        <Grid Grid.Row="1">
+            <!-- Startup Stage (Official Living HAFIZ Face First — Mandatory UX) -->
+            <views:StartupStagePage
+                x:Name="StartupStage"
+                Visibility="Visible" />
+
+            <!-- Main Native WinUI 3 Workspace Shell -->
+            <NavigationView
+                x:Name="WorkspaceNav"
+                Visibility="Collapsed"
+                PaneDisplayMode="LeftCompact"
+                IsBackButtonVisible="Collapsed"
+                IsSettingsVisible="False"
+                SelectionChanged="OnNavSelectionChanged">
+
+                <NavigationView.MenuItems>
+                    <NavigationViewItem x:Name="NavLyrics" Tag="LyricsStudio" Content="استوديو الكلمات">
+                        <NavigationViewItem.Icon>
+                            <FontIcon Glyph="&#xE70F;" />
+                        </NavigationViewItem.Icon>
+                    </NavigationViewItem>
+                    <NavigationViewItem x:Name="NavAudio" Tag="AudioWeb" Content="الصوت والويب">
+                        <NavigationViewItem.Icon>
+                            <FontIcon Glyph="&#xE8D6;" />
+                        </NavigationViewItem.Icon>
+                    </NavigationViewItem>
+                    <NavigationViewItem x:Name="NavVoice" Tag="VoiceCloneAndStems" Content="استنساخ الصوت والستيمز">
+                        <NavigationViewItem.Icon>
+                            <FontIcon Glyph="&#xE720;" />
+                        </NavigationViewItem.Icon>
+                    </NavigationViewItem>
+                </NavigationView.MenuItems>
+
+                <NavigationView.FooterMenuItems>
+                    <NavigationViewItem x:Name="NavSettings" Tag="SettingsCenter" Content="مركز الإعدادات">
+                        <NavigationViewItem.Icon>
+                            <FontIcon Glyph="&#xE713;" />
+                        </NavigationViewItem.Icon>
+                    </NavigationViewItem>
+                </NavigationView.FooterMenuItems>
+
+                <Grid>
+                    <views:LyricsStudioPage x:Name="LyricsView" Visibility="Visible" />
+                    <views:AudioWebPage x:Name="AudioView" Visibility="Collapsed" />
+                    <views:VoiceStemsPage x:Name="VoiceView" Visibility="Collapsed" />
+                    <views:SettingsCenterPage x:Name="SettingsView" Visibility="Collapsed" />
+                </Grid>
+            </NavigationView>
+
+            <!-- Persistent Floating HAFIZ Assistant Overlay (Present Across ALL Workspaces Including Settings) -->
+            <controls:FloatingHafizOverlay
+                x:Name="FloatingAssistant"
+                Visibility="Collapsed"
+                HorizontalAlignment="Right"
+                VerticalAlignment="Bottom"
+                Margin="20" />
+        </Grid>
+    </Grid>
+</Window>

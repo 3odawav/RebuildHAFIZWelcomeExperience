@@ -70,13 +70,19 @@ function DiacriticMark({ kind, color, size }: { kind: DiacriticKind; color: stri
   )
 }
 
-export function CalligraphyBackground() {
+export function CalligraphyBackground({
+  reduceMotion = false,
+  light = false,
+}: {
+  reduceMotion?: boolean
+  light?: boolean
+}) {
   return (
     <div
       aria-hidden="true"
       data-testid="calligraphy-background"
       dir="rtl"
-      className="pointer-events-none absolute inset-0 z-0 overflow-hidden select-none"
+      className={`pointer-events-none absolute inset-0 z-0 overflow-hidden select-none ${light ? 'opacity-25' : ''}`}
     >
       {/* Floating Arabic Ruqaa letters with authentic diacritics */}
       {GLYPHS.map(glyph => (
@@ -84,7 +90,7 @@ export function CalligraphyBackground() {
           key={glyph.id}
           lang="ar"
           className={`absolute leading-none ${
-            glyph.drift === 'a' ? 'calligraphy-drift-a' : 'calligraphy-drift-b'
+            reduceMotion ? '' : glyph.drift === 'a' ? 'calligraphy-drift-a' : 'calligraphy-drift-b'
           }`}
           style={
             {
@@ -93,12 +99,13 @@ export function CalligraphyBackground() {
               fontSize: `${glyph.size}px`,
               fontFamily: "'Aref Ruqaa', serif",
               fontWeight: glyph.depth === 0 ? 700 : 400,
-              color: glyph.color,
-              opacity: glyph.opacity,
+              color: light ? '#2b5485' : glyph.color,
+              opacity: light ? Math.min(0.28, glyph.opacity) : glyph.opacity,
+              transform: reduceMotion ? `translate(-50%, -50%) rotate(${glyph.rotate}deg)` : undefined,
               '--rot': `${glyph.rotate}deg`,
               '--dur': `${glyph.duration}s`,
               '--delay': `${glyph.delay}s`,
-              textShadow: '0 2px 14px rgba(10, 21, 33, 0.55)',
+              textShadow: light ? 'none' : '0 2px 14px rgba(10, 21, 33, 0.55)',
             } as React.CSSProperties
           }
         >
@@ -110,19 +117,20 @@ export function CalligraphyBackground() {
       {DIACRITICS.map(mark => (
         <span
           key={mark.id}
-          className="calligraphy-tashkeel absolute"
+          className={`absolute ${reduceMotion ? '' : 'calligraphy-tashkeel'}`}
           style={
             {
               left: `${mark.x}%`,
               top: `${mark.y}%`,
-              opacity: mark.opacity,
+              opacity: light ? Math.min(0.26, mark.opacity) : mark.opacity,
+              transform: reduceMotion ? `translate(-50%, -50%) rotate(${mark.rotate}deg)` : undefined,
               '--rot': `${mark.rotate}deg`,
               '--dur': `${mark.duration}s`,
               '--delay': `${mark.delay}s`,
             } as React.CSSProperties
           }
         >
-          <DiacriticMark kind={mark.kind} color={mark.color} size={mark.size} />
+          <DiacriticMark kind={mark.kind} color={light ? '#2b5485' : mark.color} size={mark.size} />
         </span>
       ))}
     </div>

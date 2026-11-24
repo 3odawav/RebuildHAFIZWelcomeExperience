@@ -5,6 +5,7 @@ import { FirstRunWizardModal } from './components/FirstRunWizardModal'
 import { FloatingHafizAssistant, type DockSide } from './components/FloatingHafizAssistant'
 import { HafizFaceRig } from './components/HafizFaceRig'
 import { ModelManagerView } from './components/ModelManagerView'
+import { ModelScannerModal } from './components/ModelScannerModal'
 import { SettingsCenterView, type SettingsTabId } from './components/SettingsCenterView'
 import { SpeakingWaveAura } from './components/SpeakingWaveAura'
 import {
@@ -16,7 +17,22 @@ import {
   resolveRequiredRoutingRule,
 } from './contracts/orchestrator'
 import { getTranslations, type AppTranslations, type UiLanguage, type VoiceLanguage } from './i18n/translations'
+import {
+  HafizBackendAdapter,
+  type BackendConnectionState,
+} from './services/backendAdapter'
 import { resolveHafizIntent, type AvatarState } from './utils/avatarAnimation'
+import {
+  DEFAULT_STORAGE_CONFIG,
+  addScanPartition,
+  getExecutionProfileDefaults,
+  normalizeWindowsPath,
+  removeScanPartition,
+  type ExecutionProfile,
+  type ModelSetupMode,
+  type UiThemePreset,
+} from './utils/storageConfig'
+import { getThemeTokens } from './utils/themeTokens'
 
 type IconName = 'home' | 'pen' | 'audio' | 'mic' | 'settings' | 'folder' | 'download' | 'arrow' | 'spark' | 'layers' | 'globe' | 'close' | 'play'
 function Icon({ name, className = '' }: { name: IconName; className?: string }) {
@@ -55,10 +71,6 @@ const screens: { path: string; icon: IconName; group: string }[] = [
   { path: 'projects', icon: 'folder', group: '' },
 ]
 
-const button = 'inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-white/15 bg-white/5 px-4 text-sm transition hover:border-cyan-400/60 hover:bg-cyan-400/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 disabled:cursor-not-allowed disabled:opacity-60'
-const field = 'w-full rounded-xl border border-slate-700 bg-black/20 p-3.5 text-sm outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400'
-const panel = 'rounded-2xl border border-slate-700/70 bg-[#0b1623]/90'
-
 function load<T,>(key: string, fallback: T): T { try { return JSON.parse(localStorage.getItem(key) || 'null') ?? fallback } catch { return fallback } }
 function persist(key: string, value: unknown) { try { localStorage.setItem(key, JSON.stringify(value)) } catch { /* storage unavailable */ } }
 function downloadFile(content: string, name = 'HAFIZ-lyrics.txt', mime = 'text/plain;charset=utf-8') {
@@ -66,7 +78,7 @@ function downloadFile(content: string, name = 'HAFIZ-lyrics.txt', mime = 'text/p
   const a = document.createElement('a'); a.href = url; a.download = name; a.click(); URL.revokeObjectURL(url)
 }
 
-function AudioPreview({ url, name, t, ar }: { url: string; name: string; t: AppTranslations; ar: boolean }) {
+function AudioPreview({ url, name, t, ar, panelClass, textAccentClass }: { url: string; name: string; t: AppTranslations; ar: boolean; panelClass: string; textAccentClass: string }) {
   const [peaks, setPeaks] = useState<number[]>([])
   const [status, setStatus] = useState(t.decodingWaveform)
   const [duration, setDuration] = useState(0)
@@ -88,10 +100,10 @@ function AudioPreview({ url, name, t, ar }: { url: string; name: string; t: AppT
     }).catch(() => { if (!disposed) setStatus(t.waveformUnsupported) }).finally(() => void decoder.close())
     return () => { disposed = true }
   }, [url, t.decodingWaveform, t.waveformUnsupported])
-  return <div className={`${panel} mt-5 p-5`}>
+  return <div className={`${panelClass} mt-5 p-5`}>
     <div className="mb-4 flex flex-wrap justify-between gap-2">
       <h3 dir="ltr" className="break-all font-mono text-sm">{name}</h3>
-      <p dir="ltr" className="text-xs text-sky-200" role="status">{status}</p>
+      <p dir="ltr" className={`text-xs ${textAccentClass}`} role="status">{status}</p>
     </div>
     {peaks.length > 0 && <svg viewBox="0 0 720 100" preserveAspectRatio="none" role="img" aria-label={ar ? `الموجة الصوتية، المدة ${duration.toFixed(2)} ثانية` : `Decoded source waveform, ${duration.toFixed(2)} seconds`} className="mb-4 h-28 w-full rounded-lg bg-[#030b15] text-sky-400">
       <path d="M0 50H720" stroke="#1c3a50" />
@@ -123,7 +135,11 @@ function HafizAvatarStage({
         ? t.statusListening
         : state === 'speaking'
           ? t.statusSpeaking
-          : t.statusReady
+          : state === 'laughing'
+            ? t.statusLaughing
+            : state === 'serious'
+              ? t.statusSerious
+              : t.statusReady
 
   return (
     <div
@@ -131,15 +147,17 @@ function HafizAvatarStage({
       data-avatar-state={state}
       className="relative isolate mx-auto flex h-[340px] w-full max-w-[700px] items-center justify-center sm:h-[410px] md:h-[470px]"
     >
-      {/* Clean electric-blue ambient halo behind HAFIZ — no heavy dashboard box */}
+      {/* Clean electric-blue ambient halo behind HAFIZ — intensifies on speaking/laughing, tightens on serious */}
       <div
         aria-hidden="true"
         className={`pointer-events-none absolute inset-x-[10%] top-[4%] bottom-[8%] rounded-full blur-3xl transition-all duration-700 ${
           state === 'thinking'
             ? 'scale-105 bg-[radial-gradient(ellipse,#00b7ff66_0%,#0052b444_50%,transparent_72%)]'
-            : state === 'speaking' || state === 'listening'
+            : state === 'speaking' || state === 'listening' || state === 'laughing'
               ? 'scale-105 bg-[radial-gradient(ellipse,#00a6ff78_0%,#004ea845_50%,transparent_72%)]'
-              : 'bg-[radial-gradient(ellipse,#007bff4a_0%,#003b7a2c_48%,transparent_72%)]'
+              : state === 'serious'
+                ? 'scale-95 bg-[radial-gradient(ellipse,#0066cc48_0%,#00224a24_45%,transparent_70%)]'
+                : 'bg-[radial-gradient(ellipse,#007bff4a_0%,#003b7a2c_48%,transparent_72%)]'
         }`}
       />
 
@@ -195,9 +213,9 @@ function HafizAvatarStage({
       >
         <span
           className={`h-2 w-2 rounded-full bg-cyan-300 shadow-[0_0_10px_#4ae8ff] ${
-            state === 'speaking' || state === 'listening'
+            state === 'speaking' || state === 'listening' || state === 'laughing'
               ? 'motion-safe:animate-ping'
-              : state === 'thinking'
+              : state === 'thinking' || state === 'serious'
                 ? 'motion-safe:animate-pulse'
                 : ''
           }`}
@@ -225,6 +243,16 @@ export default function App() {
     const saved = load<string>('hafiz-voice-lang', 'ar-EG')
     return saved === 'en-US' ? 'en-US' : 'ar-EG'
   })
+  const [theme, setTheme] = useState<UiThemePreset>(() => {
+    const saved = load<string>('hafiz-theme', 'midnight_blue')
+    if (saved === 'graphite_gold' || saved === 'light_studio') return saved
+    return 'midnight_blue'
+  })
+  const [density, setDensity] = useState<'comfortable' | 'compact'>(() => {
+    const saved = load<string>('hafiz-density', 'comfortable')
+    return saved === 'compact' ? 'compact' : 'comfortable'
+  })
+  const [reduceMotion, setReduceMotion] = useState<boolean>(() => load('hafiz-reduce-motion', false))
   const [uiScale, setUiScale] = useState<number>(() => {
     const saved = load<number>('hafiz-ui-scale', 100)
     return saved === 112 || saved === 125 ? saved : 100
@@ -243,20 +271,50 @@ export default function App() {
   const [reference, setReference] = useState({ url: '', name: '' })
   const [settingsTab, setSettingsTab] = useState<SettingsTabId>(() => load('hafiz-settings-tab', 'general'))
   const [speechEnabled, setSpeechEnabled] = useState(() => load('hafiz-speech', true))
+  const [speechRate, setSpeechRate] = useState<number>(() => {
+    const saved = load<number>('hafiz-speech-rate', 0.95)
+    return typeof saved === 'number' && saved >= 0.75 && saved <= 1.25 ? saved : 0.95
+  })
   const [bargeIn, setBargeIn] = useState(() => load('hafiz-barge-in', true))
   const [micMode, setMicMode] = useState<'push_to_talk' | 'continuous'>(() => load('hafiz-mic-mode', 'push_to_talk'))
+  const [executionProfile, setExecutionProfile] = useState<ExecutionProfile>(() => {
+    const saved = load<string>('hafiz-exec-profile', 'balanced_rtx5000')
+    if (saved === 'max_speed' || saved === 'low_vram_coexist') return saved
+    return 'balanced_rtx5000'
+  })
   const [idleTimeoutSec, setIdleTimeoutSec] = useState<number>(() => load('hafiz-idle-timeout', 120))
   const [routerMode, setRouterMode] = useState<boolean>(() => load('hafiz-router-mode', true))
   const [vramMarginGb, setVramMarginGb] = useState<number>(() => load('hafiz-vram-margin', 2.0))
   const [singleModelLock, setSingleModelLock] = useState<boolean>(() => load('hafiz-single-model-lock', true))
-  const [modelDir, setModelDir] = useState<string>(() => load('hafiz-model-dir', 'E:\\HAFIZ_Models'))
+  const [appInstallDir, setAppInstallDir] = useState<string>(() => load('hafiz-app-install-dir', DEFAULT_STORAGE_CONFIG.appInstallDir))
+  const [modelDir, setModelDir] = useState<string>(() => load('hafiz-model-dir', DEFAULT_STORAGE_CONFIG.modelDownloadDir))
+  const [setupMode, setSetupMode] = useState<ModelSetupMode>(() => {
+    const saved = load<string>('hafiz-setup-mode', DEFAULT_STORAGE_CONFIG.setupMode)
+    if (saved === 'hybrid_scan_then_download' || saved === 'download_all') return saved
+    return 'scan_in_place'
+  })
+  const [scanPartitions, setScanPartitions] = useState<string[]>(() => load('hafiz-scan-partitions', DEFAULT_STORAGE_CONFIG.scanPartitions))
+  const [inPlaceLinking, setInPlaceLinking] = useState<boolean>(() => load('hafiz-in-place-linking', DEFAULT_STORAGE_CONFIG.inPlaceLinking))
+  const [perModelPaths, setPerModelPaths] = useState<Record<string, string>>(() => load('hafiz-per-model-paths', {}))
+  const [downloadSpeedLimitMb, setDownloadSpeedLimitMb] = useState<number>(() => load('hafiz-dl-speed-limit', 0))
+  const [autoResumeDownloads, setAutoResumeDownloads] = useState<boolean>(() => load('hafiz-auto-resume-dl', true))
+  const [autoCheckBackend, setAutoCheckBackend] = useState<boolean>(() => load('hafiz-auto-check-backend', true))
+  const [setupBannerDismissed, setSetupBannerDismissed] = useState<boolean>(() => load('hafiz-setup-banner-dismissed', false))
+  const [backendState, setBackendState] = useState<BackendConnectionState>('DISCONNECTED')
   const [wizardOpen, setWizardOpen] = useState(false)
+  const [scannerOpen, setScannerOpen] = useState(false)
   const [search, setSearch] = useState('')
   const [renamingId, setRenamingId] = useState<number | null>(null)
   const [renameDraft, setRenameDraft] = useState('')
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
   const [undo, setUndo] = useState<string[]>([])
   const [redo, setRedo] = useState<string[]>([])
+
+  const backendRef = useRef<HafizBackendAdapter | null>(null)
+  if (!backendRef.current) {
+    backendRef.current = new HafizBackendAdapter()
+  }
+
   const stream = useRef<MediaStream | null>(null)
   const context = useRef<AudioContext | null>(null)
   const frame = useRef(0)
@@ -269,6 +327,7 @@ export default function App() {
   const current = screens.find(s => s.path === route) || screens[0]
   const ar = language === 'ar'
   const t = getTranslations(language)
+  const tokens = getThemeTokens(theme)
   const routingRule = resolveRequiredRoutingRule(route)
   const micEnergy = state === 'listening'
     ? Math.min(1, Math.max(0, (levels.reduce((sum, v) => sum + v, 0) / levels.length - 3) / 36))
@@ -287,6 +346,8 @@ export default function App() {
     const fn = () => {
       setRoute(location.hash.slice(1) || 'welcome')
       setNotice('')
+      setScannerOpen(false)
+      setWizardOpen(false)
     }
     window.addEventListener('hashchange', fn)
     return () => window.removeEventListener('hashchange', fn)
@@ -295,15 +356,29 @@ export default function App() {
   useEffect(() => { persist('hafiz-projects', projects) }, [projects])
   useEffect(() => { persist('hafiz-language', language) }, [language])
   useEffect(() => { persist('hafiz-voice-lang', voiceLanguage) }, [voiceLanguage])
+  useEffect(() => { persist('hafiz-theme', theme) }, [theme])
+  useEffect(() => { persist('hafiz-density', density) }, [density])
+  useEffect(() => { persist('hafiz-reduce-motion', reduceMotion) }, [reduceMotion])
   useEffect(() => { persist('hafiz-ui-scale', uiScale) }, [uiScale])
   useEffect(() => { persist('hafiz-speech', speechEnabled) }, [speechEnabled])
+  useEffect(() => { persist('hafiz-speech-rate', speechRate) }, [speechRate])
   useEffect(() => { persist('hafiz-barge-in', bargeIn) }, [bargeIn])
   useEffect(() => { persist('hafiz-mic-mode', micMode) }, [micMode])
+  useEffect(() => { persist('hafiz-exec-profile', executionProfile) }, [executionProfile])
   useEffect(() => { persist('hafiz-idle-timeout', idleTimeoutSec) }, [idleTimeoutSec])
   useEffect(() => { persist('hafiz-router-mode', routerMode) }, [routerMode])
   useEffect(() => { persist('hafiz-vram-margin', vramMarginGb) }, [vramMarginGb])
   useEffect(() => { persist('hafiz-single-model-lock', singleModelLock) }, [singleModelLock])
+  useEffect(() => { persist('hafiz-app-install-dir', appInstallDir) }, [appInstallDir])
   useEffect(() => { persist('hafiz-model-dir', modelDir) }, [modelDir])
+  useEffect(() => { persist('hafiz-setup-mode', setupMode) }, [setupMode])
+  useEffect(() => { persist('hafiz-scan-partitions', scanPartitions) }, [scanPartitions])
+  useEffect(() => { persist('hafiz-in-place-linking', inPlaceLinking) }, [inPlaceLinking])
+  useEffect(() => { persist('hafiz-per-model-paths', perModelPaths) }, [perModelPaths])
+  useEffect(() => { persist('hafiz-dl-speed-limit', downloadSpeedLimitMb) }, [downloadSpeedLimitMb])
+  useEffect(() => { persist('hafiz-auto-resume-dl', autoResumeDownloads) }, [autoResumeDownloads])
+  useEffect(() => { persist('hafiz-auto-check-backend', autoCheckBackend) }, [autoCheckBackend])
+  useEffect(() => { persist('hafiz-setup-banner-dismissed', setupBannerDismissed) }, [setupBannerDismissed])
   useEffect(() => { persist('hafiz-settings-tab', settingsTab) }, [settingsTab])
   useEffect(() => { persist('hafiz-dock-side', dockSide) }, [dockSide])
   useEffect(() => () => { if (audioUrl) URL.revokeObjectURL(audioUrl) }, [audioUrl])
@@ -343,6 +418,69 @@ export default function App() {
     }
     setMessage(nextValue)
   }
+  function handleExecutionProfileChange(nextProfile: ExecutionProfile) {
+    setExecutionProfile(nextProfile)
+    const defaults = getExecutionProfileDefaults(nextProfile)
+    setVramMarginGb(defaults.vramMarginGb)
+    setIdleTimeoutSec(defaults.idleTimeoutSec)
+    setSingleModelLock(defaults.singleModelLock)
+    setRouterMode(defaults.routerMode)
+  }
+  function handleTogglePartition(drive: string) {
+    const normalized = normalizeWindowsPath(drive).toLowerCase()
+    const exists = scanPartitions.some(p => normalizeWindowsPath(p).toLowerCase() === normalized)
+    setScanPartitions(prev => (exists ? removeScanPartition(prev, drive) : addScanPartition(prev, drive)))
+  }
+  function handleAddPartition(rawPath: string) {
+    setScanPartitions(prev => addScanPartition(prev, rawPath))
+  }
+  function handleRemovePartition(targetPath: string) {
+    setScanPartitions(prev => removeScanPartition(prev, targetPath))
+  }
+  function handleSetModelPath(modelId: string, path: string) {
+    setPerModelPaths(prev => ({ ...prev, [modelId]: normalizeWindowsPath(path) }))
+  }
+  function handleResetModelPath(modelId: string) {
+    setPerModelPaths(prev => {
+      const next = { ...prev }
+      delete next[modelId]
+      return next
+    })
+  }
+  async function handleProbeBackend() {
+    const adapter = backendRef.current!
+    setBackendState('CONNECTING')
+    const result = await adapter.probeHealth()
+    setBackendState(result.connectionState)
+    if (result.ok) {
+      setNotice(ar ? `تم الاتصال بمحرك ويندوز المحلي (${result.data?.serviceVersion ?? 'ready'}).` : `Connected to local Windows backend (${result.data?.serviceVersion ?? 'ready'}).`)
+    } else {
+      setNotice(t.noticeCompanionBlocked)
+    }
+  }
+  async function handlePurgeVram() {
+    const adapter = backendRef.current!
+    setBackendState('BUSY')
+    const result = await adapter.purgeHafizVram()
+    setBackendState(result.connectionState)
+    if (result.ok) {
+      setNotice(ar ? 'تم تفريغ نماذج حافظ الخاملة من ذاكرة GPU بأمان.' : 'Safely unloaded idle HAFIZ models from GPU memory.')
+    } else {
+      setNotice(t.noticePurgeBlocked)
+    }
+  }
+  async function handleRunPartitionScan(indexSavePath: string) {
+    const adapter = backendRef.current!
+    setBackendState('BUSY')
+    const result = await adapter.scanPartitions({
+      partitions: scanPartitions,
+      inPlaceLinking,
+      indexSavePath,
+    })
+    setBackendState(result.connectionState)
+    return result
+  }
+
   function speak(value: string, options?: { silentNotice?: boolean }) {
     if (!value.trim()) return setNotice(t.noticeEnterTextSpeech)
     if (!speechEnabled) return setNotice(t.noticeEnableSpeech)
@@ -356,7 +494,7 @@ export default function App() {
       let started = false
       const u = new SpeechSynthesisUtterance(value)
       u.lang = voiceLanguage
-      u.rate = voiceLanguage === 'ar-EG' ? 0.94 : 1.0
+      u.rate = speechRate
       const voices = speechSynthesis.getVoices()
       const langPrefix = voiceLanguage.slice(0, 2)
       const matchedVoice =
@@ -398,6 +536,25 @@ export default function App() {
       }
     }
   }
+  function triggerMood(mood: 'idle' | 'speaking' | 'laughing' | 'serious') {
+    if (speechTimer.current) { clearTimeout(speechTimer.current); speechTimer.current = null }
+    if (thinkingTimer.current) { clearTimeout(thinkingTimer.current); thinkingTimer.current = null }
+    if ('speechSynthesis' in window) speechSynthesis.cancel()
+
+    if (mood === 'speaking') {
+      if (speechEnabled) {
+        speak(welcomeVoiceLine, { silentNotice: true })
+      } else {
+        setState('speaking')
+        setSpeechBeatAt(performance.now())
+      }
+      return
+    }
+    setState(mood)
+    if (mood === 'laughing') {
+      setSpeechBeatAt(performance.now())
+    }
+  }
   async function mic() {
     if (requestingMic.current) return
     if (bargeIn && state === 'speaking') stopSpeaking()
@@ -430,7 +587,8 @@ export default function App() {
     setState('thinking')
     thinkingTimer.current = globalThis.setTimeout(() => {
       thinkingTimer.current = null
-      setLastReply(ar ? intent.replyAr : intent.replyEn)
+      const reply = ar ? intent.replyAr : intent.replyEn
+      setLastReply(reply)
       const spokenLine = voiceLanguage === 'ar-EG' ? intent.replyAr : intent.replyEn
       if (speechEnabled) {
         speak(spokenLine, { silentNotice: true })
@@ -455,21 +613,35 @@ export default function App() {
     const payload = {
       generatedAt: new Date().toISOString(),
       environment: 'web-preview',
-      companionConnected: false,
+      backendConnectionState: backendState,
+      companionConnected: backendState === 'READY',
       liveGpuTelemetry: null,
       targetHardwareSpec: TARGET_HARDWARE_SPEC,
       preferences: {
         uiLanguage: t.langCode,
         voiceLanguage,
+        theme,
+        density,
+        reduceMotion,
         uiScalePercent: uiScale,
         dockSide,
+        speechRate,
         micMode,
         bargeIn,
+        executionProfile,
         idleUnloadTimeoutSec: idleTimeoutSec,
         llamaCppRouterMode: routerMode,
         vramSafetyMarginGb: vramMarginGb,
         singleModelLock,
-        modelDirectory: modelDir,
+        appInstallDir,
+        modelDownloadDir: modelDir,
+        setupMode,
+        scanPartitions,
+        inPlaceLinking,
+        perModelPaths,
+        downloadSpeedLimitMb,
+        autoResumeDownloads,
+        autoCheckBackend,
         savedBrowserProjects: projects.length,
       },
       voiceLatencyStages: VOICE_LATENCY_STAGES,
@@ -491,7 +663,7 @@ export default function App() {
   }
 
   const aiAction = (key: string) => (
-    <button key={key} type="button" className={button} onClick={() => blocked()}>
+    <button key={key} type="button" className={tokens.button} onClick={() => blocked()}>
       <Icon name="spark" />{t.aiActions[key] || key}
     </button>
   )
@@ -499,11 +671,11 @@ export default function App() {
     <label
       onDragOver={e => e.preventDefault()}
       onDrop={e => { e.preventDefault(); file(e.dataTransfer.files[0], target) }}
-      className={`${panel} flex min-h-36 cursor-pointer flex-col items-center justify-center gap-3 border-dashed p-5 text-center text-sm hover:border-cyan-400`}
+      className={`${tokens.panel} flex min-h-36 cursor-pointer flex-col items-center justify-center gap-3 border-dashed p-5 text-center text-sm hover:border-cyan-400`}
     >
-      <Icon name="download" className="h-8 w-8 text-sky-300" />
+      <Icon name="download" className={`h-8 w-8 ${tokens.textAccent}`} />
       <span>{label}</span>
-      <span className="text-xs text-slate-300">{t.uploadHint}</span>
+      <span className={`text-xs ${tokens.textMuted}`}>{t.uploadHint}</span>
       <input aria-label={label} type="file" accept="audio/*" className="max-w-full text-sm" onChange={e => file(e.target.files?.[0], target)} />
     </label>
   )
@@ -514,7 +686,7 @@ export default function App() {
       value={text}
       onChange={e => edit(e.target.value)}
       placeholder={t.editorPlaceholder}
-      className={`${field} min-h-[330px] resize-y text-lg leading-9`}
+      className={`${tokens.field} min-h-[330px] resize-y text-lg leading-9`}
     />
   )
 
@@ -560,11 +732,19 @@ export default function App() {
     { path: 'setup/general', label: t.navSettings, icon: 'settings' },
   ]
 
+  const workspacePad = density === 'compact' ? 'p-4 pb-32 md:p-6 md:pb-32' : 'p-5 pb-36 md:p-9 md:pb-36'
+
+  function handleLanguageSwitch(nextLang: UiLanguage) {
+    setLanguage(nextLang)
+    setDockSide(nextLang === 'ar' ? 'left' : 'right')
+  }
+
   return (
     <div
       dir={t.dir}
-      className="flex min-h-screen flex-col overflow-x-hidden bg-[#050b13] text-slate-100 selection:bg-cyan-700"
-      style={{ fontFamily: ar ? 'var(--hafiz-font-ar)' : 'var(--hafiz-font-en)' }}
+      data-theme={theme}
+      className={`flex min-h-screen flex-col overflow-x-hidden ${isStartup ? 'bg-[#050b13] text-slate-100 selection:bg-cyan-700' : tokens.rootBg}`}
+      style={{ fontFamily: ar ? 'var(--font-ui-rtl)' : 'var(--font-ui-ltr)' }}
     >
       {isStartup ? (
         <header className="relative z-30 flex min-h-16 items-center justify-between gap-4 px-5 py-2 md:px-9">
@@ -579,14 +759,14 @@ export default function App() {
           <div className="flex items-center gap-2.5">
             <button
               type="button"
-              className={`${button} min-h-10 border-sky-800/70 bg-[#071525]/70 px-3 text-xs`}
-              onClick={() => setLanguage(ar ? 'en' : 'ar')}
+              className="inline-flex min-h-10 items-center justify-center rounded-lg border border-sky-800/70 bg-[#071525]/70 px-3 text-xs text-slate-100 transition hover:border-cyan-400/60 hover:bg-cyan-400/10"
+              onClick={() => handleLanguageSwitch(ar ? 'en' : 'ar')}
             >
               {t.switchLangLabel}
             </button>
             <button
               type="button"
-              className={`${button} min-h-10 whitespace-nowrap border-sky-700/60 bg-sky-500/10 px-3 text-xs text-sky-100 sm:px-3.5`}
+              className="inline-flex min-h-10 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-sky-700/60 bg-sky-500/10 px-3 text-xs text-sky-100 transition hover:border-cyan-400/70 hover:bg-sky-400/20 sm:px-3.5"
               onClick={() => go('studio/editor')}
             >
               <span>{t.enterWorkspace}</span>
@@ -595,7 +775,7 @@ export default function App() {
           </div>
         </header>
       ) : (
-        <header className="relative z-30 flex min-h-20 flex-wrap items-center justify-between gap-4 border-b border-slate-800 bg-[#080e17]/95 px-5 md:px-8">
+        <header className={`relative z-30 flex min-h-20 flex-wrap items-center justify-between gap-4 border-b px-5 md:px-8 ${tokens.headerBar}`}>
           <button
             type="button"
             className="flex min-h-11 shrink-0 items-center rounded-lg py-1.5 text-start transition hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
@@ -610,18 +790,20 @@ export default function App() {
                 key={item.path}
                 type="button"
                 onClick={() => go(item.path)}
-                className={`${button} shrink-0 border-transparent bg-transparent px-3 ${current.group === item.path.split('/')[0] ? 'bg-sky-400/10 text-cyan-300' : 'text-slate-300'}`}
+                className={`${tokens.button} shrink-0 border-transparent bg-transparent px-3 ${
+                  current.group === item.path.split('/')[0] ? tokens.buttonActive : tokens.textMuted
+                }`}
               >
                 <Icon name={item.icon} />{item.label}
               </button>
             ))}
           </nav>
           <div className="flex items-center gap-3">
-            <button type="button" className={`${button} px-3`} onClick={() => setLanguage(ar ? 'en' : 'ar')}>
+            <button type="button" className={`${tokens.button} px-3`} onClick={() => handleLanguageSwitch(ar ? 'en' : 'ar')}>
               {t.switchLangLabel}
             </button>
-            <span className="hidden h-5 w-px bg-slate-700 lg:block" />
-            <button type="button" aria-label={t.openSettingsAria} className={`${button} border-transparent px-2`} onClick={() => go('setup/general')}>
+            <span className={`hidden h-5 w-px lg:block ${tokens.isLight ? 'bg-slate-300' : 'bg-slate-700'}`} />
+            <button type="button" aria-label={t.openSettingsAria} className={`${tokens.button} border-transparent px-2`} onClick={() => go('setup/general')}>
               <Icon name="settings" />
             </button>
           </div>
@@ -630,7 +812,7 @@ export default function App() {
 
       <div className="flex flex-1">
         {!isStartup && (
-          <aside className="z-20 hidden w-[76px] shrink-0 flex-col items-center gap-4 border-e border-slate-800/80 bg-[#080f19] py-7 lg:flex">
+          <aside className={`z-20 hidden w-[76px] shrink-0 flex-col items-center gap-4 border-e py-7 lg:flex ${tokens.sidebar}`}>
             {(['welcome', 'studio/editor', 'audio/analysis', 'voice_stems/clone', 'projects'] as const).map(path => {
               const s = screens.find(item => item.path === path)!
               const label = t.screenTitles[path] || path
@@ -641,7 +823,9 @@ export default function App() {
                   onClick={() => go(path)}
                   aria-label={label}
                   title={label}
-                  className={`grid h-12 w-12 place-items-center rounded-xl transition focus-visible:ring-2 focus-visible:ring-cyan-300 ${route === path ? 'border border-sky-500/40 bg-sky-500/15 text-sky-300 shadow-[0_0_20px_#008cff18]' : 'text-slate-300 hover:bg-white/5'}`}
+                  className={`grid h-12 w-12 place-items-center rounded-xl transition focus-visible:ring-2 focus-visible:ring-cyan-300 ${
+                    route === path ? `border ${tokens.buttonActive}` : `${tokens.textMuted} hover:bg-sky-500/10`
+                  }`}
                 >
                   <Icon name={s.icon} />
                 </button>
@@ -658,7 +842,9 @@ export default function App() {
                     aria-label={label}
                     title={label}
                     onClick={() => go(path)}
-                    className={`${button} border-transparent px-3 ${route === path ? 'bg-sky-500/15 text-sky-300' : ''}`}
+                    className={`grid h-11 w-11 place-items-center rounded-xl transition focus-visible:ring-2 focus-visible:ring-cyan-300 ${
+                      route === path ? `border ${tokens.buttonActive}` : `${tokens.textMuted} hover:bg-sky-500/10`
+                    }`}
                   >
                     <Icon name={iconName} />
                   </button>
@@ -669,7 +855,7 @@ export default function App() {
         )}
 
         <main className="relative isolate flex min-w-0 flex-1 flex-col overflow-hidden">
-          <CalligraphyBackground />
+          <CalligraphyBackground reduceMotion={reduceMotion} light={!isStartup && tokens.isLight} />
 
           {isStartup ? (
             <section
@@ -685,7 +871,7 @@ export default function App() {
                   {lastReply || t.startupGreeting}
                 </h1>
 
-                {/* Unified Voice + Text Conversational Bar */}
+                {/* Unified Voice + Text + Facial Expression Capsule */}
                 <div className="mx-auto mt-4 max-w-[650px] rounded-2xl border border-sky-500/40 bg-[#061528]/80 p-2.5 shadow-[0_12px_40px_rgba(0,12,28,0.65),0_0_26px_rgba(0,148,255,0.16),inset_0_1px_0_rgba(125,220,255,0.2)] backdrop-blur-xl">
                   <form
                     onSubmit={e => { e.preventDefault(); askHafiz() }}
@@ -739,6 +925,38 @@ export default function App() {
                     </button>
                   </form>
 
+                  {/* Interactive Facial Expression Quick Controls (Speaking / Laughing / Serious / Calm) */}
+                  <div
+                    role="group"
+                    aria-label={t.moodGroupAria}
+                    className="mt-2.5 flex flex-wrap items-center justify-center gap-1.5 border-t border-sky-900/70 pt-2.5"
+                  >
+                    {([
+                      ['speaking', t.moodSpeaking],
+                      ['laughing', t.moodLaughing],
+                      ['serious', t.moodSerious],
+                      ['idle', t.moodCalm],
+                    ] as const).map(([moodId, label]) => {
+                      const active = state === moodId
+                      return (
+                        <button
+                          key={moodId}
+                          type="button"
+                          data-testid={`mood-btn-${moodId}`}
+                          aria-pressed={active}
+                          onClick={() => triggerMood(moodId)}
+                          className={`min-h-8 rounded-lg border px-3 py-1 text-xs transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 ${
+                            active
+                              ? 'border-cyan-300 bg-cyan-400/25 font-medium text-cyan-100 shadow-[0_0_16px_rgba(0,183,255,0.28)]'
+                              : 'border-sky-800/70 bg-sky-950/50 text-sky-200 hover:border-cyan-400/70 hover:bg-sky-500/15'
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      )
+                    })}
+                  </div>
+
                   {state === 'listening' && (
                     <div className="mt-2.5 flex h-7 items-center justify-center gap-[3px] px-4" aria-label={ar ? 'مستوى الميكروفون المباشر' : 'Live microphone levels'}>
                       {levels.slice(0, 32).map((v, i) => (
@@ -761,23 +979,57 @@ export default function App() {
                     </button>
                   ))}
                 </div>
+
+                {/* Subtle Non-Blocking First-Run Setup Choice Strip (never covers HAFIZ's face) */}
+                {!setupBannerDismissed && (
+                  <div
+                    data-testid="startup-setup-banner"
+                    className="mx-auto mt-3.5 flex max-w-[650px] flex-wrap items-center justify-between gap-2 rounded-xl border border-sky-800/60 bg-[#071525]/75 px-3.5 py-2 text-xs text-sky-200"
+                  >
+                    <span className="text-start">{t.startupSetupBanner}</span>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setScannerOpen(true)}
+                        className="rounded-lg border border-cyan-400/50 bg-cyan-500/15 px-2.5 py-1 text-[11px] text-cyan-100 transition hover:bg-cyan-400/25"
+                      >
+                        {t.scanPartitionsAction}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setWizardOpen(true)}
+                        className="rounded-lg border border-sky-700/70 bg-sky-500/15 px-2.5 py-1 text-[11px] text-sky-100 transition hover:border-cyan-400"
+                      >
+                        {t.startupSetupCta}
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={t.dismissNoticeAria}
+                        onClick={() => setSetupBannerDismissed(true)}
+                        className="grid h-7 w-7 place-items-center rounded-md text-slate-400 hover:bg-white/10 hover:text-white"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </section>
           ) : (
-            <section className="relative z-10 mx-auto w-full max-w-[1500px] flex-1 p-5 pb-36 md:p-9 md:pb-36">
+            <section className={`relative z-10 mx-auto w-full max-w-[1500px] flex-1 ${workspacePad}`}>
               <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
                 <div className="min-w-0">
-                  <p className="mb-1.5 text-xs tracking-[.12em] text-sky-300">
+                  <p className={`mb-1.5 text-xs tracking-[.12em] ${tokens.titleAccent}`}>
                     {ar ? 'حافظ' : 'HAFIZ'} / {t.groupLabels[current.group] || t.groupLabels['']}
                   </p>
-                  <h1 className="text-2xl font-medium sm:text-3xl">{t.screenTitles[current.path]}</h1>
-                  <p className="mt-1.5 text-xs text-slate-300">
-                    <span className="text-cyan-300">{ar ? 'منسّق المهام:' : 'Task Orchestrator:'}</span>{' '}
+                  <h1 className={`text-2xl font-medium sm:text-3xl ${tokens.textPrimary}`}>{t.screenTitles[current.path]}</h1>
+                  <p className={`mt-1.5 text-xs ${tokens.textMuted}`}>
+                    <span className={tokens.titleAccent}>{ar ? 'منسّق المهام:' : 'Task Orchestrator:'}</span>{' '}
                     {ar ? routingRule.enginesAr : routingRule.enginesEn}
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <button type="button" className={button} onClick={() => go('projects')}>
+                  <button type="button" className={tokens.button} onClick={() => go('projects')}>
                     <Icon name="folder" />{t.navProjects}
                   </button>
                 </div>
@@ -789,7 +1041,7 @@ export default function App() {
                     key={s.path}
                     type="button"
                     onClick={() => go(s.path)}
-                    className={`${button} shrink-0 ${s.path === route ? 'border-sky-500/70 bg-sky-500/15 text-sky-200' : ''}`}
+                    className={`${tokens.button} shrink-0 ${s.path === route ? tokens.buttonActive : ''}`}
                   >
                     {t.screenTitles[s.path]}
                   </button>
@@ -799,28 +1051,28 @@ export default function App() {
               {route.startsWith('studio/') && (
                 <>
                   <div className="mb-4 flex flex-wrap gap-2">
-                    <button type="button" className={button} onClick={save}>{t.saveDraft}</button>
-                    <label className={`${button} cursor-pointer`}>
+                    <button type="button" className={tokens.button} onClick={save}>{t.saveDraft}</button>
+                    <label className={`${tokens.button} cursor-pointer`}>
                       {t.openTxt}
                       <input aria-label={t.openTxtAria} type="file" accept=".txt" className="hidden" onChange={e => file(e.target.files?.[0])} />
                     </label>
-                    <button type="button" className={button} onClick={() => downloadFile(text)}>{t.exportTxt}</button>
+                    <button type="button" className={tokens.button} onClick={() => downloadFile(text)}>{t.exportTxt}</button>
                     <button
                       type="button"
-                      className={button}
+                      className={tokens.button}
                       onClick={() => void navigator.clipboard.writeText(text).then(() => setNotice(t.noticeCopied), () => setNotice(t.noticeClipboardUnavailable))}
                     >
                       {t.copyText}
                     </button>
-                    <button type="button" className={button} onClick={() => speak(text)}>{t.readText}</button>
-                    <button type="button" className={button} onClick={() => edit('')}>{t.clearText}</button>
+                    <button type="button" className={tokens.button} onClick={() => speak(text)}>{t.readText}</button>
+                    <button type="button" className={tokens.button} onClick={() => edit('')}>{t.clearText}</button>
                   </div>
 
                   {route === 'studio/songwriting' && (
-                    <div className={`${panel} mb-4 grid gap-4 p-5 md:grid-cols-3`}>
+                    <div className={`${tokens.panel} mb-4 grid gap-4 p-5 md:grid-cols-3`}>
                       <label className="text-sm">
                         {t.genreLabel}
-                        <select aria-label={t.genreLabel} className={`${field} mt-2`}>
+                        <select aria-label={t.genreLabel} className={`${tokens.field} mt-2`}>
                           {genreOptions.map(g => (
                             <option key={g.value} value={g.value}>{ar ? g.arLabel : g.enLabel}</option>
                           ))}
@@ -828,36 +1080,36 @@ export default function App() {
                       </label>
                       <label className="text-sm">
                         {t.moodLabel}
-                        <input className={`${field} mt-2`} placeholder={t.moodPlaceholder} />
+                        <input className={`${tokens.field} mt-2`} placeholder={t.moodPlaceholder} />
                       </label>
                       <label className="text-sm">
                         {t.arrangementLabel}
-                        <input className={`${field} mt-2`} placeholder={t.arrangementPlaceholder} />
+                        <input className={`${tokens.field} mt-2`} placeholder={t.arrangementPlaceholder} />
                       </label>
                     </div>
                   )}
 
                   {route === 'studio/diacritics' && (
                     <div className="mb-4 flex flex-wrap gap-3">
-                      <select aria-label={t.addressSelectAria} className={`${field} max-w-52`}>
+                      <select aria-label={t.addressSelectAria} className={`${tokens.field} max-w-52`}>
                         {t.addressOptions.map(opt => <option key={opt}>{opt}</option>)}
                       </select>
                       {['Smart Diacritics', 'Suno Phonetic', 'Connected Egyptian', 'Proofread'].map(aiAction)}
-                      <button type="button" className={button} onClick={() => edit(text.replace(/[\u064B-\u065F\u0670]/g, ''))}>
+                      <button type="button" className={tokens.button} onClick={() => edit(text.replace(/[\u064B-\u065F\u0670]/g, ''))}>
                         {t.stripDiacriticsLocal}
                       </button>
                     </div>
                   )}
 
-                  <div className={`${panel} p-4`}>
+                  <div className={`${tokens.panel} p-4`}>
                     <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                      <span className="text-sm text-slate-300">
+                      <span className={`text-sm ${tokens.textMuted}`}>
                         {route === 'studio/songwriting' ? t.writingSpaceSong : route === 'studio/rhymes' ? t.writingSpaceRhymes : t.writingSpaceDefault}
                       </span>
                       <div className="flex gap-2">
                         <button
                           type="button"
-                          className={button}
+                          className={tokens.button}
                           disabled={!undo.length}
                           onClick={() => { setRedo(r => [...r, text]); setText(undo[undo.length - 1]); setUndo(u => u.slice(0, -1)) }}
                         >
@@ -865,7 +1117,7 @@ export default function App() {
                         </button>
                         <button
                           type="button"
-                          className={button}
+                          className={tokens.button}
                           disabled={!redo.length}
                           onClick={() => { setUndo(u => [...u, text]); setText(redo[redo.length - 1]); setRedo(r => r.slice(0, -1)) }}
                         >
@@ -874,7 +1126,7 @@ export default function App() {
                       </div>
                     </div>
                     {editor}
-                    <div className="mt-3 flex flex-wrap justify-between gap-2 text-xs text-slate-300">
+                    <div className={`mt-3 flex flex-wrap justify-between gap-2 text-xs ${tokens.textMuted}`}>
                       <span>{t.editorFooterInfo}</span>
                       <span>
                         {text.trim() ? text.trim().split(/\s+/).length : 0} {t.wordsLabel} · {text.length} {t.charsLabel}
@@ -900,55 +1152,55 @@ export default function App() {
                     {route.endsWith('clone') ? (
                       upload(t.uploadReferenceVoice, 'reference')
                     ) : (
-                      <div className={`${panel} p-5`}>
+                      <div className={`${tokens.panel} p-5`}>
                         <label className="text-sm">
                           {t.youtubeUrlLabel}
-                          <input dir="ltr" aria-label={t.youtubeUrlLabel} className={`${field} mt-3 font-mono text-xs`} placeholder={t.youtubePlaceholder} />
+                          <input dir="ltr" aria-label={t.youtubeUrlLabel} className={`${tokens.field} mt-3 font-mono text-xs`} placeholder={t.youtubePlaceholder} />
                         </label>
-                        <p className="mt-4 text-sm text-slate-300">{t.youtubeNote}</p>
+                        <p className={`mt-4 text-sm ${tokens.textMuted}`}>{t.youtubeNote}</p>
                       </div>
                     )}
                   </div>
                   <div className={route.endsWith('clone') ? 'grid gap-5 md:grid-cols-2' : ''}>
-                    {audioUrl && <AudioPreview url={audioUrl} name={audioName} t={t} ar={ar} />}
-                    {route.endsWith('clone') && reference.url && <AudioPreview url={reference.url} name={reference.name} t={t} ar={ar} />}
+                    {audioUrl && <AudioPreview url={audioUrl} name={audioName} t={t} ar={ar} panelClass={tokens.panel} textAccentClass={tokens.textAccent} />}
+                    {route.endsWith('clone') && reference.url && <AudioPreview url={reference.url} name={reference.name} t={t} ar={ar} panelClass={tokens.panel} textAccentClass={tokens.textAccent} />}
                   </div>
-                  <div className={`${panel} mt-5 space-y-5 p-5`}>
+                  <div className={`${tokens.panel} mt-5 space-y-5 p-5`}>
                     <label className="block text-sm">
                       {t.processingModeLabel}
-                      <select aria-label={t.processingModeLabel} className={`${field} mt-2`}>
+                      <select aria-label={t.processingModeLabel} className={`${tokens.field} mt-2`}>
                         {processingModes.map(x => <option key={x}>{x}</option>)}
                       </select>
                     </label>
                     {route.endsWith('clone') && (
                       <label className="block text-sm">
                         {t.pitchShiftLabel}
-                        <input aria-label={t.pitchShiftLabel} type="range" min="-12" max="12" defaultValue="0" className="mx-3 align-middle accent-sky-400" />
-                        <span className="text-xs text-slate-300">{t.pitchShiftRange}</span>
+                        <input aria-label={t.pitchShiftLabel} type="range" min="-12" max="12" defaultValue="0" className="mx-3 align-middle accent-sky-500" />
+                        <span className={`text-xs ${tokens.textMuted}`}>{t.pitchShiftRange}</span>
                       </label>
                     )}
-                    <button type="button" className={`${button} border-sky-500 bg-sky-500/15`} onClick={() => blocked()}>
+                    <button type="button" className={`${tokens.button} ${tokens.buttonAccent}`} onClick={() => blocked()}>
                       <Icon name="play" />{t.startProcessing}
                     </button>
-                    <p className="text-sm text-slate-300">{t.noProcessedAudio}</p>
+                    <p className={`text-sm ${tokens.textMuted}`}>{t.noProcessedAudio}</p>
                   </div>
                 </>
               )}
 
               {route === 'audio/web' && (
-                <div className={`${panel} space-y-5 p-6`}>
+                <div className={`${tokens.panel} space-y-5 p-6`}>
                   <label className="block text-sm">
                     {t.sourceUrlLabel}
-                    <input dir="ltr" className={`${field} mt-2 font-mono text-xs`} placeholder={t.sourceUrlPlaceholder} />
+                    <input dir="ltr" className={`${tokens.field} mt-2 font-mono text-xs`} placeholder={t.sourceUrlPlaceholder} />
                   </label>
                   <label className="block text-sm">
                     {t.researchQueryLabel}
-                    <input className={`${field} mt-2`} placeholder={t.researchQueryPlaceholder} />
+                    <input className={`${tokens.field} mt-2`} placeholder={t.researchQueryPlaceholder} />
                   </label>
                   <div className="flex flex-wrap gap-2">
                     {['Extract Available Lyrics', 'Research & Generate Prompt', 'Egyptian Phonetic Processing'].map(aiAction)}
                   </div>
-                  <p className="text-sm text-slate-300">{t.webAgentOffline}</p>
+                  <p className={`text-sm ${tokens.textMuted}`}>{t.webAgentOffline}</p>
                 </div>
               )}
 
@@ -957,13 +1209,22 @@ export default function App() {
                   mode={route === 'setup/models' ? 'models' : 'downloads'}
                   ar={ar}
                   t={t}
+                  theme={theme}
+                  appInstallDir={appInstallDir}
+                  onAppInstallDirChange={setAppInstallDir}
                   modelDir={modelDir}
                   onModelDirChange={setModelDir}
+                  scanPartitions={scanPartitions}
+                  inPlaceLinking={inPlaceLinking}
+                  onInPlaceLinkingChange={setInPlaceLinking}
+                  perModelPaths={perModelPaths}
+                  onSetModelPath={handleSetModelPath}
+                  onResetModelPath={handleResetModelPath}
+                  backendState={backendState}
+                  onProbeBackend={() => void handleProbeBackend()}
+                  onOpenScanner={() => setScannerOpen(true)}
                   onBlocked={blocked}
                   onOpenWizard={() => setWizardOpen(true)}
-                  buttonClass={button}
-                  panelClass={panel}
-                  fieldClass={field}
                 />
               )}
 
@@ -974,19 +1235,29 @@ export default function App() {
                   activeTab={settingsTab}
                   onTabChange={setSettingsTab}
                   language={language}
-                  onLanguageChange={setLanguage}
+                  onLanguageChange={handleLanguageSwitch}
                   voiceLanguage={voiceLanguage}
                   onVoiceLanguageChange={setVoiceLanguage}
+                  theme={theme}
+                  onThemeChange={setTheme}
+                  density={density}
+                  onDensityChange={setDensity}
+                  reduceMotion={reduceMotion}
+                  onReduceMotionChange={setReduceMotion}
                   uiScale={uiScale}
                   onUiScaleChange={setUiScale}
                   dockSide={dockSide}
                   onDockSideChange={setDockSide}
                   speechEnabled={speechEnabled}
                   onSpeechEnabledChange={setSpeechEnabled}
+                  speechRate={speechRate}
+                  onSpeechRateChange={setSpeechRate}
                   bargeIn={bargeIn}
                   onBargeInChange={setBargeIn}
                   micMode={micMode}
                   onMicModeChange={setMicMode}
+                  executionProfile={executionProfile}
+                  onExecutionProfileChange={handleExecutionProfileChange}
                   idleTimeoutSec={idleTimeoutSec}
                   onIdleTimeoutSecChange={setIdleTimeoutSec}
                   routerMode={routerMode}
@@ -995,18 +1266,31 @@ export default function App() {
                   onVramMarginGbChange={setVramMarginGb}
                   singleModelLock={singleModelLock}
                   onSingleModelLockChange={setSingleModelLock}
+                  appInstallDir={appInstallDir}
+                  onAppInstallDirChange={setAppInstallDir}
                   modelDir={modelDir}
                   onModelDirChange={setModelDir}
+                  scanPartitions={scanPartitions}
+                  onTogglePartition={handleTogglePartition}
+                  inPlaceLinking={inPlaceLinking}
+                  onInPlaceLinkingChange={setInPlaceLinking}
+                  downloadSpeedLimitMb={downloadSpeedLimitMb}
+                  onDownloadSpeedLimitChange={setDownloadSpeedLimitMb}
+                  autoResumeDownloads={autoResumeDownloads}
+                  onAutoResumeDownloadsChange={setAutoResumeDownloads}
+                  manualOverridesCount={Object.keys(perModelPaths).length}
+                  autoCheckBackend={autoCheckBackend}
+                  onAutoCheckBackendChange={setAutoCheckBackend}
+                  backendState={backendState}
+                  onProbeBackend={() => void handleProbeBackend()}
+                  onOpenScanner={() => setScannerOpen(true)}
                   savedProjectsCount={projects.length}
                   avatarState={state}
                   onToggleMic={() => void mic()}
-                  onPurgeVram={() => setNotice(t.noticePurgeBlocked)}
+                  onPurgeVram={() => void handlePurgeVram()}
                   onBlocked={() => blocked()}
                   onExportDiagnostics={exportDiagnostics}
                   onOpenWizard={() => setWizardOpen(true)}
-                  buttonClass={button}
-                  panelClass={panel}
-                  fieldClass={field}
                 />
               )}
 
@@ -1016,15 +1300,15 @@ export default function App() {
                     aria-label={t.searchProjectsAria}
                     value={search}
                     onChange={e => setSearch(e.target.value)}
-                    className={`${field} mb-5`}
+                    className={`${tokens.field} mb-5`}
                     placeholder={t.searchProjectsPlaceholder}
                   />
                   {projects.length === 0 ? (
-                    <div className={`${panel} py-20 text-center`}>
-                      <Icon name="folder" className="mx-auto mb-5 h-10 w-10 text-sky-300" />
+                    <div className={`${tokens.panel} py-20 text-center`}>
+                      <Icon name="folder" className={`mx-auto mb-5 h-10 w-10 ${tokens.textAccent}`} />
                       <h2 className="text-xl">{t.projectsEmptyTitle}</h2>
-                      <p className="my-4 text-sm text-slate-300">{t.projectsEmptyDesc}</p>
-                      <button type="button" className={button} onClick={() => go('studio/editor')}>
+                      <p className={`my-4 text-sm ${tokens.textMuted}`}>{t.projectsEmptyDesc}</p>
+                      <button type="button" className={tokens.button} onClick={() => go('studio/editor')}>
                         {t.createFirstProject}
                       </button>
                     </div>
@@ -1032,7 +1316,7 @@ export default function App() {
                     projects
                       .filter(p => p.title.toLowerCase().includes(search.toLowerCase()))
                       .map(p => (
-                        <div key={p.id} className={`${panel} mb-3 flex flex-wrap items-center gap-3 p-5`}>
+                        <div key={p.id} className={`${tokens.panel} mb-3 flex flex-wrap items-center gap-3 p-5`}>
                           {renamingId === p.id ? (
                             <form
                               className="flex min-w-0 flex-1 flex-wrap items-center gap-2"
@@ -1048,43 +1332,43 @@ export default function App() {
                                 aria-label={t.projectRenamePrompt}
                                 value={renameDraft}
                                 onChange={e => setRenameDraft(e.target.value)}
-                                className={`${field} max-w-sm py-2`}
+                                className={`${tokens.field} max-w-sm py-2`}
                                 autoFocus
                               />
-                              <button type="submit" className={`${button} border-cyan-400/60 bg-sky-500/15`}>
+                              <button type="submit" className={`${tokens.button} ${tokens.buttonAccent}`}>
                                 {t.saveDraft}
                               </button>
-                              <button type="button" className={button} onClick={() => setRenamingId(null)}>
+                              <button type="button" className={tokens.button} onClick={() => setRenamingId(null)}>
                                 {t.floatingHideBtn}
                               </button>
                             </form>
                           ) : (
                             <span className="min-w-0 flex-1 truncate">{p.title}</span>
                           )}
-                          <button type="button" className={button} onClick={() => { edit(p.text); go('studio/editor') }}>
+                          <button type="button" className={tokens.button} onClick={() => { edit(p.text); go('studio/editor') }}>
                             {t.projectOpen}
                           </button>
                           <button
                             type="button"
-                            className={button}
+                            className={tokens.button}
                             onClick={() => { setRenamingId(p.id); setRenameDraft(p.title) }}
                           >
                             {t.projectRename}
                           </button>
                           <button
                             type="button"
-                            className={button}
+                            className={tokens.button}
                             onClick={() => setProjects(ps => [{ ...p, id: Date.now(), title: `${p.title} ${t.projectCopySuffix}` }, ...ps])}
                           >
                             {t.projectDuplicate}
                           </button>
-                          <button type="button" className={button} onClick={() => downloadFile(p.text)}>
+                          <button type="button" className={tokens.button} onClick={() => downloadFile(p.text)}>
                             {t.projectExport}
                           </button>
                           {confirmDeleteId === p.id ? (
                             <button
                               type="button"
-                              className={`${button} border-rose-400/70 bg-rose-500/20 text-rose-100`}
+                              className={`${tokens.button} border-rose-400/70 bg-rose-500/20 text-rose-600 dark:text-rose-100`}
                               onClick={() => {
                                 setProjects(ps => ps.filter(x => x.id !== p.id))
                                 setConfirmDeleteId(null)
@@ -1093,7 +1377,7 @@ export default function App() {
                               {t.projectDeleteConfirm}
                             </button>
                           ) : (
-                            <button type="button" className={button} onClick={() => setConfirmDeleteId(p.id)}>
+                            <button type="button" className={tokens.button} onClick={() => setConfirmDeleteId(p.id)}>
                               {t.projectDelete}
                             </button>
                           )}
@@ -1109,13 +1393,13 @@ export default function App() {
 
       {/* Top-center non-overlapping status notice toast (never collides with Floating Assistant) */}
       {notice && (
-        <div role="status" className="fixed inset-x-4 top-24 z-50 mx-auto flex max-w-2xl items-start gap-3 rounded-xl border border-cyan-400/50 bg-[#091c31]/95 p-4 text-sm leading-6 shadow-[0_16px_42px_rgba(0,8,20,0.8)] backdrop-blur-md">
+        <div role="status" className={`fixed inset-x-4 top-24 z-50 mx-auto flex max-w-2xl items-start gap-3 rounded-xl border p-4 text-sm leading-6 backdrop-blur-md ${tokens.toast}`}>
           <span className="flex-1">{notice}</span>
           <button
             type="button"
             aria-label={t.dismissNoticeAria}
             onClick={() => setNotice('')}
-            className="grid min-h-10 min-w-10 shrink-0 place-items-center rounded-lg hover:bg-white/10 focus-visible:ring-2"
+            className="grid min-h-10 min-w-10 shrink-0 place-items-center rounded-lg hover:bg-sky-500/10 focus-visible:ring-2"
           >
             <Icon name="close" />
           </button>
@@ -1132,6 +1416,7 @@ export default function App() {
           micEnergy={micEnergy}
           ar={ar}
           t={t}
+          theme={theme}
           lastReply={lastReply}
           message={message}
           onMessageChange={handleCommandInputChange}
@@ -1142,31 +1427,58 @@ export default function App() {
         />
       )}
 
+      {/* Multi-Drive Partition Scanner Modal (E:, D:, custom folders — In-Place Zero-Move) */}
+      <ModelScannerModal
+        open={scannerOpen}
+        ar={ar}
+        t={t}
+        theme={theme}
+        appInstallDir={appInstallDir}
+        scanPartitions={scanPartitions}
+        inPlaceLinking={inPlaceLinking}
+        backendState={backendState}
+        onTogglePartition={handleTogglePartition}
+        onAddPartition={handleAddPartition}
+        onRemovePartition={handleRemovePartition}
+        onInPlaceLinkingChange={setInPlaceLinking}
+        onRunScan={handleRunPartitionScan}
+        onClose={() => setScannerOpen(false)}
+      />
+
       {/* Non-intrusive First-Run Setup & Hardware Wizard Modal */}
       <FirstRunWizardModal
         open={wizardOpen}
         ar={ar}
         t={t}
+        theme={theme}
+        appInstallDir={appInstallDir}
+        onAppInstallDirChange={setAppInstallDir}
         modelDir={modelDir}
         onModelDirChange={setModelDir}
+        setupMode={setupMode}
+        onSetupModeChange={setSetupMode}
+        scanPartitions={scanPartitions}
+        onTogglePartition={handleTogglePartition}
+        inPlaceLinking={inPlaceLinking}
+        onInPlaceLinkingChange={setInPlaceLinking}
+        onOpenScanner={() => setScannerOpen(true)}
         onClose={() => setWizardOpen(false)}
         onComplete={() => {
           setWizardOpen(false)
+          setSetupBannerDismissed(true)
           setNotice(t.noticeWizardSaved)
         }}
-        buttonClass={button}
-        fieldClass={field}
       />
 
-      <footer className="relative z-20 flex min-h-10 flex-wrap items-center justify-between gap-2 border-t border-slate-800/80 bg-[#080f19]/90 px-6 py-2 text-xs text-slate-300">
+      <footer className={`relative z-20 flex min-h-10 flex-wrap items-center justify-between gap-2 border-t px-6 py-2 text-xs ${isStartup ? 'border-slate-800/80 bg-[#080f19]/90 text-slate-300' : tokens.footer}`}>
         <span className="flex items-center gap-2">
-          <span className="h-1.5 w-1.5 rounded-full bg-amber-300" />
+          <span className={`h-1.5 w-1.5 rounded-full ${backendState === 'READY' ? 'bg-emerald-400' : 'bg-amber-400'}`} />
           {t.footerPreviewBadge}
-          <span className="mx-1.5 text-slate-600">|</span>
-          {t.footerCompanionOffline}
+          <span className="mx-1.5 opacity-40">|</span>
+          {t.backendStates[backendState]}
         </span>
         <span className="hidden md:block">{t.footerTagline}</span>
-        <button type="button" className="min-h-9 text-sky-200 hover:underline" onClick={() => go('setup/general')}>
+        <button type="button" className={`min-h-9 hover:underline ${isStartup ? 'text-sky-200' : tokens.textAccent}`} onClick={() => go('setup/general')}>
           {t.footerSystemLink} <span className="ms-1">↗</span>
         </button>
       </footer>

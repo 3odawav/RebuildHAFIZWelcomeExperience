@@ -1,0 +1,90 @@
+<UserControl
+    x:Class="HAFIZ.App.Controls.FloatingHafizOverlay"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:HAFIZ.App.Controls">
+
+    <!-- Persistent Floating HAFIZ Assistant Overlay:
+         Present across ALL workspaces (Lyrics Studio, Audio & Web, Voice & 6-Stems, Settings Center).
+         Draggable & dockable Left <-> Right; never forces a full-screen Matrix overlay during workspace work. -->
+    <Border
+        x:Name="FloatingCapsule"
+        CornerRadius="22"
+        Padding="10"
+        Background="{ThemeResource HafizSurfaceBrush}"
+        BorderBrush="{ThemeResource HafizMatrixHaloBrush}"
+        BorderThickness="1.5"
+        MaxWidth="292">
+        <StackPanel Spacing="8">
+            <Grid ColumnSpacing="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <controls:LivingHafizAvatarControl
+                    x:Name="MiniAvatar"
+                    Grid.Column="0"
+                    AvatarSize="64" />
+
+                <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                    <TextBlock
+                        x:Name="AssistantNameText"
+                        Text="حافظ"
+                        FontSize="14"
+                        FontWeight="SemiBold"
+                        Foreground="{ThemeResource HafizTextPrimaryBrush}" />
+                    <TextBlock
+                        x:Name="AssistantStatusText"
+                        Text="جاهز أساعدك"
+                        FontSize="12"
+                        Foreground="{ThemeResource HafizTextSecondaryBrush}"
+                        TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                    <Button
+                        x:Name="DockSideButton"
+                        Click="OnToggleDockClick"
+                        ToolTipService.ToolTip="Move Left / Right"
+                        Padding="6,4">
+                        <FontIcon Glyph="&#xE8AB;" FontSize="13" />
+                    </Button>
+                    <Button
+                        x:Name="CollapseButton"
+                        Click="OnToggleExpandedClick"
+                        ToolTipService.ToolTip="Expand / Collapse"
+                        Padding="6,4">
+                        <FontIcon Glyph="&#xE70D;" FontSize="13" />
+                    </Button>
+                </StackPanel>
+            </Grid>
+
+            <!-- Compact In-Place Voice & Quick Command Tray (No Full-Screen Modal) -->
+            <StackPanel x:Name="CommandTray" Spacing="6" Visibility="Collapsed">
+                <Grid ColumnSpacing="6">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBox
+                        x:Name="QuickCommandInput"
+                        Grid.Column="0"
+                        PlaceholderText="قول لحافظ عايز إيه..."
+                        KeyDown="OnCommandInputKeyDown" />
+                    <Button
+                        Grid.Column="1"
+                        Click="OnSendCommandClick"
+                        Style="{StaticResource AccentButtonStyle}"
+                        Content="إرسال" />
+                </Grid>
+
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <Button Click="OnListenToggleClick" Content="🎤 اتكلم" />
+                    <Button Click="OnReturnHomeClick" Content="الواجهة الرئيسية" />
+                </StackPanel>
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</UserControl>

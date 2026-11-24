@@ -1,4 +1,4 @@
-export type AvatarState = 'idle' | 'listening' | 'thinking' | 'speaking'
+export type AvatarState = 'idle' | 'listening' | 'thinking' | 'speaking' | 'laughing' | 'serious'
 
 export interface AvatarPose {
   /** 0 = closed lips, 1 = wide open speaking mouth */
@@ -373,6 +373,54 @@ export function sampleAvatarPose(
       headTiltDeg: -2.4 + Math.sin(timeSec * 1.1) * 0.9,
       lensGlint: Math.sin(timeSec * 3.4),
       waveBars,
+    }
+  }
+
+  if (state === 'laughing') {
+    const bounce = Math.sin(timeSec * 8.4)
+    const chuckle = 0.5 + 0.5 * Math.sin(timeSec * 11.2)
+    const waveBars = Array.from({ length: 16 }, (_, i) => {
+      const centerWeight = 1 - Math.abs(i - 6.5) / 8.5
+      const sparkle = 0.5 + 0.5 * Math.sin(timeSec * 10 - i * 0.55)
+      return Math.min(1, Math.max(0.1, centerWeight * (0.3 + chuckle * 0.45) * (0.5 + sparkle * 0.5)))
+    })
+    return {
+      mouthOpen: 0.24 + chuckle * 0.28,
+      mouthWidth: 1.12 + chuckle * 0.06,
+      smirk: 0.92,
+      leftBrowLift: 0.58 + chuckle * 0.22,
+      rightBrowLift: 0.62 + chuckle * 0.22,
+      browLift: 0.6 + chuckle * 0.22,
+      blink,
+      lookX: Math.sin(timeSec * 2.1) * 0.26,
+      lookY: -0.14 + Math.sin(timeSec * 4.2) * 0.1,
+      headYawDeg: Math.sin(timeSec * 2.4) * 4.4,
+      headPitchDeg: 2.8 + bounce * 2.4,
+      headNod: 0.35 + bounce * 0.45,
+      headTiltDeg: 3.1 + Math.sin(timeSec * 3.1) * 2.2,
+      lensGlint: 0.85 * Math.sin(timeSec * 3.8),
+      waveBars,
+    }
+  }
+
+  if (state === 'serious') {
+    const steadyBreath = Math.sin(timeSec * 0.9)
+    return {
+      mouthOpen: 0,
+      mouthWidth: 0.92,
+      smirk: 0,
+      leftBrowLift: 0.04,
+      rightBrowLift: 0.04,
+      browLift: 0.04,
+      blink,
+      lookX: Math.sin(timeSec * 0.45) * 0.06,
+      lookY: 0.06,
+      headYawDeg: Math.sin(timeSec * 0.4) * 0.9,
+      headPitchDeg: -2.2 + steadyBreath * 0.35,
+      headNod: -0.12 + steadyBreath * 0.06,
+      headTiltDeg: -0.6,
+      lensGlint: 0.15 + Math.sin(timeSec * 0.8) * 0.12,
+      waveBars: Array(16).fill(0.08),
     }
   }
 

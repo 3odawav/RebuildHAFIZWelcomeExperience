@@ -19,8 +19,8 @@ interface HafizFaceRigProps {
   onError?: () => void
 }
 
-const PRIMARY_AVATAR_SRC = '/assets/aistudio/ChatGPT_Image_Nov_22__2026__05_36_34_AM-1_c9e67bf6.png'
-const FALLBACK_AVATAR_SRC = '/assets/hafiz-front.png'
+const PRIMARY_AVATAR_SRC = '/assets/hafiz-front.png'
+const FALLBACK_AVATAR_SRC = '/assets/hafiz-profile.png'
 
 /**
  * Pixel-exact normalized facial landmarks measured on HAFIZ's official 1254×1254 front portrait.
@@ -231,7 +231,13 @@ export function HafizFaceRig({
       const breathScale =
         1 +
         Math.sin(t * 1.45) * 0.007 +
-        (curState === 'speaking' ? smoothMouth * 0.009 : curState === 'listening' ? 0.014 : 0)
+        (curState === 'speaking'
+          ? smoothMouth * 0.009
+          : curState === 'laughing'
+            ? 0.012 + Math.sin(t * 8.4) * 0.006
+            : curState === 'listening'
+              ? 0.014
+              : 0)
       const nodPx = smoothNod * H * 0.009
       const tiltRad = (smoothTilt * Math.PI) / 180
 
@@ -243,6 +249,23 @@ export function HafizFaceRig({
 
       // Base official front-facing HAFIZ portrait (pre-scaled cache, exact identity preserved)
       ctx.drawImage(baseImg, 0, 0, W, H)
+
+      // Subtle mood lighting accent (serious frontal focus vs speaking neon holographic shimmer)
+      if (curState === 'serious') {
+        const focusVig = ctx.createRadialGradient(W * 0.5, H * 0.44, W * 0.14, W * 0.5, H * 0.46, W * 0.52)
+        focusVig.addColorStop(0, 'rgba(130, 225, 255, 0.09)')
+        focusVig.addColorStop(0.65, 'rgba(0, 12, 28, 0.08)')
+        focusVig.addColorStop(1, 'rgba(0, 4, 12, 0.28)')
+        ctx.fillStyle = focusVig
+        ctx.fillRect(0, 0, W, H)
+      } else if (curState === 'speaking') {
+        const holoFlicker = 0.04 + smoothImpulse * 0.08 + Math.sin(t * 22) * 0.015
+        const holoGrad = ctx.createRadialGradient(W * 0.5, H * 0.46, W * 0.1, W * 0.5, H * 0.48, W * 0.5)
+        holoGrad.addColorStop(0, `rgba(60, 220, 255, ${holoFlicker.toFixed(3)})`)
+        holoGrad.addColorStop(1, 'rgba(0, 140, 255, 0)')
+        ctx.fillStyle = holoGrad
+        ctx.fillRect(0, 0, W, H)
+      }
 
       // 2. Asymmetric Expressive Eyebrows (curious cocked brow when thinking/looking up, lifted when speaking)
       if (smoothLeftBrow > 0.02) {
@@ -382,11 +405,15 @@ export function HafizFaceRig({
       const eyeGlowStrength =
         curState === 'speaking'
           ? 0.44 + smoothMouth * 0.22 + smoothImpulse * 0.22
-          : curState === 'thinking'
-            ? 0.52
-            : curState === 'listening'
-              ? 0.42 + energy * 0.24
-              : 0.30
+          : curState === 'laughing'
+            ? 0.66 + Math.sin(t * 9) * 0.14
+            : curState === 'serious'
+              ? 0.36
+              : curState === 'thinking'
+                ? 0.52
+                : curState === 'listening'
+                  ? 0.42 + energy * 0.24
+                  : 0.30
 
       for (const eye of eyes) {
         const ex = eye.x * W
@@ -458,7 +485,13 @@ export function HafizFaceRig({
         data-testid={compact ? 'hafiz-floating-rig' : 'hafiz-front-rig'}
         data-avatar-state={state}
         aria-label="Official HAFIZ front-facing animated character"
-        className="h-full w-full object-contain drop-shadow-[0_0_26px_#069cff88]"
+        className={`h-full w-full object-contain transition-[filter] duration-300 ${
+          state === 'serious'
+            ? 'contrast-110 drop-shadow-[0_0_24px_#0055aa99]'
+            : state === 'laughing'
+              ? 'brightness-105 drop-shadow-[0_0_32px_#38e8ffaa]'
+              : 'drop-shadow-[0_0_26px_#069cff88]'
+        }`}
       />
     </div>
   )

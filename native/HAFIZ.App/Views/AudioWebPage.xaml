@@ -1,0 +1,56 @@
+<UserControl
+    x:Class="HAFIZ.App.Views.AudioWebPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <Grid Padding="24" RowSpacing="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Spacing="4">
+            <TextBlock Style="{StaticResource HafizSectionTitleStyle}" Text="الصوت والويب — Audio &amp; Web" />
+            <TextBlock
+                Foreground="{ThemeResource HafizTextSecondaryBrush}"
+                Text="تفريغ صوتي محلي (Cohere Transcribe / transcribe.cpp)، تحليل موسيقي، واستيراد الصوتيات" />
+        </StackPanel>
+
+        <Grid Grid.Row="1" ColumnSpacing="16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0" Style="{StaticResource HafizCardStyle}">
+                <StackPanel Spacing="12">
+                    <TextBlock FontSize="15" FontWeight="SemiBold" Text="التفريغ الصوتي المحلي — Local Transcription" />
+                    <TextBox x:Name="AudioPathBox" PlaceholderText="مسار ملف الصوت (WAV / MP3 / FLAC)..." />
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Click="OnRunTranscribeClick" Style="{StaticResource AccentButtonStyle}" Content="ابدأ التفريغ (transcribe.cpp)" />
+                        <Button Click="OnAnalyzeMusicClick" Content="تحليل الإيقاع والمقام" />
+                    </StackPanel>
+                    <TextBox
+                        x:Name="TranscriptResultBox"
+                        AcceptsReturn="True"
+                        TextWrapping="Wrap"
+                        Height="240"
+                        IsReadOnly="True"
+                        PlaceholderText="نص التفريغ الصوتي سيظهر هنا..." />
+                </StackPanel>
+            </Border>
+
+            <Border Grid.Column="1" Style="{StaticResource HafizCardStyle}">
+                <StackPanel Spacing="12">
+                    <TextBlock FontSize="15" FontWeight="SemiBold" Text="البحث المدعوم ويوتيوب — Supported Web &amp; YouTube" />
+                    <TextBox x:Name="WebUrlBox" PlaceholderText="رابط فيديو أو مصدر بحثي مدعوم..." />
+                    <Button Click="OnQueueWebIngestClick" Content="تحليل الرابط واستخراج الصوت" />
+                    <TextBlock
+                        x:Name="AudioWebStatus"
+                        Foreground="{ThemeResource HafizTextSecondaryBrush}"
+                        Text="جاهز لاستقبال ملفات الصوت أو الروابط المدعومة." />
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

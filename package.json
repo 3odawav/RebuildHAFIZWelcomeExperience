@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "format": "oxfmt"
+    "format": "oxfmt",
+    "typecheck": "tsc --noEmit",
+    "test": "npx --yes tsx --test src/utils/calligraphyField.test.ts src/utils/avatarAnimation.test.ts src/utils/storageConfig.test.ts src/i18n/translations.test.ts src/contracts/orchestrator.test.ts src/services/backendAdapter.test.ts"
   },
   "dependencies": {
     "react": "^19.0.0",
