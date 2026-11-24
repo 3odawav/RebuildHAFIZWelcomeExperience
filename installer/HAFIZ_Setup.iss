@@ -1,8 +1,8 @@
 ; ============================================================================
 ; HAFIZ In Slang — Official Native Windows 11 Installer (Inno Setup 6)
 ; Bilingual Arabic (RTL) & English (LTR) Setup Wizard
-; Default Program Path: E:\HAFIZ_In_Slang
-; Default Model Storage Path: E:\HAFIZ_Models
+; Default Program Path: D:\HAFIZ_In_Slang when D: exists; safe fallback otherwise
+; Default Model Storage Path: E:\HAFIZ_Models when E: exists; safe fallback otherwise
 ; Supports 3-Way Model Setup Strategy:
 ;   (A) Download verified components
 ;   (B) Scan existing local partitions (D:\AI\LMStudio-Models\local, E:\, D:\) in-place
@@ -21,7 +21,7 @@ AppId={{6F3A9D54-9A14-4C8F-B1E9-3E7A2A1B8E42}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
-DefaultDirName=E:\HAFIZ_In_Slang
+DefaultDirName={code:GetDefaultInstallDir}
 DisableDirPage=no
 DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
@@ -85,6 +85,28 @@ begin
   StringChangeEx(Result, '"', '\"', True);
 end;
 
+function GetDefaultInstallDir(Param: String): String;
+begin
+  // Prefer the user's existing D: install volume; never default to a missing drive.
+  if DirExists('D:\\') then
+    Result := 'D:\\HAFIZ_In_Slang'
+  else if DirExists('E:\\') then
+    Result := 'E:\\HAFIZ_In_Slang'
+  else
+    Result := ExpandConstant('{autopf}\\HAFIZ In Slang');
+end;
+
+function GetDefaultModelStoragePath(Param: String): String;
+begin
+  // Keep the preferred E: model volume when available, then D:, then LocalAppData.
+  if DirExists('E:\\') then
+    Result := 'E:\\HAFIZ_Models'
+  else if DirExists('D:\\') then
+    Result := 'D:\\HAFIZ_Models'
+  else
+    Result := ExpandConstant('{localappdata}\\HAFIZ_Models');
+end;
+
 procedure InitializeWizard;
 begin
   // Step: Select Model Storage Path (default E:\HAFIZ_Models)
@@ -97,7 +119,7 @@ begin
     'HAFIZ_Models'
   );
   ModelStoragePage.Add('Model Storage Directory:');
-  ModelStoragePage.Values[0] := 'E:\HAFIZ_Models';
+  ModelStoragePage.Values[0] := GetDefaultModelStoragePath('');
 
   // Step: 3-Way Model Strategy (Download / Scan Partitions / Hybrid)
   ModelStrategyPage := CreateInputOptionPage(
