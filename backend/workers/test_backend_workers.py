@@ -14,12 +14,8 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
-from audio_worker import execute_audio_task, validate_sm75_precision
-from hafiz_daemon import (
-    create_server,
-    discover_lmstudio_models,
-    scan_roots_in_place,
-)
+from audio_worker import execute_audio_task, validate_sm75_precision, detect_engine_readiness
+from hafiz_daemon import create_server, discover_lmstudio_models, scan_roots_in_place
 
 
 class MockLmStudioHandler(BaseHTTPRequestHandler):
@@ -66,6 +62,35 @@ class HafizBackendWorkerTests(unittest.TestCase):
         self.assertFalse(res["ok"])
         self.assertEqual(res["code"], "CONSENT_REQUIRED")
 
+    def test_engine_probe_does_not_claim_unimplemented_adapters_are_ready(self):
+        readiness = detect_engine_readiness()
+        self.assertTrue(readiness)
+        for item in readiness.values():
+            self.assertFalse(item.adapter_implemented)
+            self.assertNotEqual(item.status, "READY")
+
+    def test_audio_tasks_do_not_claim_success_without_real_adapters(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            source = Path(tmp) / "source.wav"
+            reference = Path(tmp) / "reference.wav"
+            source.write_bytes(b"RIFF")
+            reference.write_bytes(b"RIFF")
+
+            cases = [
+                ("tts", {"text": "أهلاً بيك يا صاحبي"}),
+                ("separate", {"input_path": str(source), "engine": "demucs_6s"}),
+                ("voice_convert", {
+                    "engine": "seed_vc",
+                    "authorized_consent": True,
+                    "source_audio": str(source),
+                    "reference_voice": str(reference),
+                }),
+            ]
+            for task, payload in cases:
+                result = execute_audio_task(task, payload)
+                self.assertFalse(result["ok"])
+                self.assertNotEqual(result.get("code"), "READY_TO_DISPATCH")
+
     def test_multi_drive_scanner_indexes_in_place_and_detects_cohere_runtime(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -96,7 +121,7 @@ class HafizBackendWorkerTests(unittest.TestCase):
             mock_srv.shutdown()
             mock_srv.server_close()
 
-    def test_loopback_daemon_enforces_token_and_handles_health_and_purge(self):
+    def test_loopback_daemon_enforces_token_and_reports_empty_purge_truthfully(self):
         with self.assertRaises(ValueError):
             create_server(host="0.0.0.0", port=0)
 
@@ -105,12 +130,10 @@ class HafizBackendWorkerTests(unittest.TestCase):
         thread = threading.Thread(target=daemon.serve_forever, daemon=True)
         thread.start()
         try:
-            # Unauthorized request must be rejected with 401
             with self.assertRaises(urllib.error.HTTPError) as ctx:
                 urllib.request.urlopen(f"http://127.0.0.1:{port}/api/v1/health", timeout=3)
             self.assertEqual(ctx.exception.code, 401)
 
-            # Authorized health check succeeds
             req = urllib.request.Request(
                 f"http://127.0.0.1:{port}/api/v1/health",
                 headers={"X-Hafiz-Token": "secret-hafiz-session"},
@@ -120,7 +143,6 @@ class HafizBackendWorkerTests(unittest.TestCase):
                 self.assertTrue(data["ok"])
                 self.assertTrue(data["loopbackOnly"])
 
-            # Authorized HAFIZ-only VRAM purge preserves external workloads
             purge_req = urllib.request.Request(
                 f"http://127.0.0.1:{port}/api/v1/gpu/purge-hafiz",
                 data=b"{}",
@@ -130,6 +152,8 @@ class HafizBackendWorkerTests(unittest.TestCase):
             with urllib.request.urlopen(purge_req, timeout=3) as resp:
                 purge = json.loads(resp.read().decode("utf-8"))
                 self.assertTrue(purge["ok"])
+                self.assertEqual(purge["status"], "nothing_to_unload")
+                self.assertEqual(purge["unloadedHafizWorkers"], [])
                 self.assertTrue(purge["externalWorkloadsPreserved"])
         finally:
             daemon.shutdown()

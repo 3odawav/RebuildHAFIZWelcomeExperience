@@ -10,7 +10,8 @@ public sealed record LoadedWorkerLease(
     int EstimatedVramMb,
     bool IsHeavy,
     DateTimeOffset LoadedAtUtc,
-    DateTimeOffset LastUsedAtUtc);
+    DateTimeOffset LastUsedAtUtc,
+    bool IsBusy = false);
 
 public sealed record GpuAdmissionDecision(
     bool Allowed,
@@ -25,14 +26,14 @@ public sealed record PurgeVramResult(
     int? VramAfterMb,
     int? ReclaimedMb,
     bool PreservedExternalWorkloads,
+    int SkippedBusyWorkerCount,
+    IReadOnlyList<string> FailedWorkerIds,
     string Message);
 
 /// <summary>
-/// Enforces the 16GB NVIDIA Quadro RTX 5000 (Turing SM75) memory discipline:
-/// - Tracks only HAFIZ-owned worker leases.
-/// - Enforces SingleHeavyModelLock so two heavy models (e.g. Qwen + Seed-VC or BS-RoFormer) never collide.
-/// - Protects external GPU processes (Unsloth, LM Studio, ComfyUI) and NEVER kills or unloads them.
-/// - Supports HAFIZ-only Purge VRAM returning real measured before/after VRAM telemetry.
+/// Read-only GPU admission and HAFIZ-owned worker accounting.
+/// Uses measured free VRAM, never inferred "used by model" values, and only proposes
+/// idle HAFIZ-owned workers for release. A busy worker is never an eviction candidate.
 /// </summary>
 public sealed class GpuMemoryGuard
 {
@@ -57,6 +58,21 @@ public sealed class GpuMemoryGuard
         }
     }
 
+    public void SetLeaseBusy(string workerId, bool isBusy)
+    {
+        lock (_sync)
+        {
+            if (_activeLeases.TryGetValue(workerId, out var existing))
+            {
+                _activeLeases[workerId] = existing with
+                {
+                    IsBusy = isBusy,
+                    LastUsedAtUtc = isBusy ? DateTimeOffset.UtcNow : existing.LastUsedAtUtc
+                };
+            }
+        }
+    }
+
     public async Task<GpuAdmissionDecision> EvaluateAdmissionAsync(
         string workerId,
         int requiredVramMb,
@@ -65,65 +81,91 @@ public sealed class GpuMemoryGuard
         CancellationToken ct = default)
     {
         var telemetry = await _hardwareInspector.ProbeGpuAsync(ct);
-        var externalProcesses = telemetry.TelemetryAvailable
-            ? telemetry.ActiveProcesses.Where(p => !p.IsHafizOwned).ToList()
-            : new List<GpuProcessInfo>();
-
-        var externalVramMb = externalProcesses.Sum(p => p.UsedVramMb);
-        var effectiveTotalMb = telemetry.TelemetryAvailable && telemetry.TotalVramMb > 0
-            ? telemetry.TotalVramMb
-            : TotalBudgetMb;
-
-        var usableCeilingMb = Math.Max(1024, effectiveTotalMb - SafetyMarginMb - externalVramMb);
+        var externalDetected = telemetry.TelemetryAvailable &&
+                               telemetry.ActiveProcesses.Any(p => !p.IsHafizOwned);
 
         lock (_sync)
         {
             if (_activeLeases.ContainsKey(workerId))
             {
-                return new GpuAdmissionDecision(true, "Worker already warm in VRAM.", Array.Empty<string>(), externalProcesses.Count > 0);
+                return new GpuAdmissionDecision(true, "Worker already warm in VRAM.", Array.Empty<string>(), externalDetected);
             }
 
-            if (protectExternalGpuWorkloads && requiredVramMb > usableCeilingMb)
+            if (requiredVramMb <= 0)
+            {
+                return new GpuAdmissionDecision(true, "No GPU memory reservation requested.", Array.Empty<string>(), externalDetected);
+            }
+
+            // Without a real free-VRAM sample, a heavy GPU admission cannot be made safely.
+            // The configured 16 GB target is not a substitute for live telemetry.
+            if (!telemetry.TelemetryAvailable && protectExternalGpuWorkloads)
             {
                 return new GpuAdmissionDecision(
                     false,
-                    $"Insufficient safe VRAM ({usableCeilingMb} MB available after {externalVramMb} MB external GPU usage and {SafetyMarginMb} MB safety margin; need {requiredVramMb} MB). External GPU workloads were preserved.",
+                    "GPU telemetry is unavailable. The operation was not admitted because external GPU usage and free VRAM cannot be verified.",
                     Array.Empty<string>(),
-                    externalProcesses.Count > 0);
+                    ExternalGpuWorkloadDetected: false);
             }
 
-            var toUnload = new List<string>();
-            var hafizUsedMb = _activeLeases.Values.Sum(l => l.EstimatedVramMb);
+            var availableMb = telemetry.TelemetryAvailable
+                ? Math.Max(0, telemetry.FreeVramMb - Math.Max(0, SafetyMarginMb))
+                : Math.Max(0, TotalBudgetMb - Math.Max(0, SafetyMarginMb) - _activeLeases.Values.Sum(l => l.EstimatedVramMb));
 
-            // SingleHeavyModelLock: unload any other heavy HAFIZ worker before admitting a new heavy worker
+            var existing = _activeLeases.Values
+                .Where(l => !l.WorkerId.Equals(workerId, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            if (isHeavy && existing.Any(l => l.IsHeavy && l.IsBusy))
+            {
+                return new GpuAdmissionDecision(
+                    false,
+                    "Another HAFIZ heavy worker is busy. Single-Model VRAM Guard will wait rather than interrupt active inference.",
+                    Array.Empty<string>(),
+                    externalDetected);
+            }
+
+            var toUnload = new List<LoadedWorkerLease>();
+
+            // Heavy tasks first release other idle heavy HAFIZ workers.
             if (isHeavy)
             {
-                foreach (var lease in _activeLeases.Values.Where(l => l.IsHeavy).OrderBy(l => l.LastUsedAtUtc))
+                foreach (var lease in existing
+                             .Where(l => l.IsHeavy && !l.IsBusy)
+                             .OrderBy(l => l.LastUsedAtUtc))
                 {
-                    toUnload.Add(lease.WorkerId);
-                    hafizUsedMb -= lease.EstimatedVramMb;
+                    toUnload.Add(lease);
+                    availableMb += Math.Max(0, lease.EstimatedVramMb);
                 }
             }
 
-            // Evict oldest HAFIZ workers until within safe ceiling
-            foreach (var lease in _activeLeases.Values.OrderBy(l => l.LastUsedAtUtc))
+            // If still short, consider other idle HAFIZ-owned workers, oldest first.
+            foreach (var lease in existing.OrderBy(l => l.LastUsedAtUtc))
             {
-                if (hafizUsedMb + requiredVramMb <= usableCeilingMb) break;
-                if (toUnload.Contains(lease.WorkerId)) continue;
-                toUnload.Add(lease.WorkerId);
-                hafizUsedMb -= lease.EstimatedVramMb;
+                if (availableMb >= requiredVramMb) break;
+                if (lease.IsBusy || toUnload.Any(x => x.WorkerId.Equals(lease.WorkerId, StringComparison.OrdinalIgnoreCase)))
+                {
+                    continue;
+                }
+
+                toUnload.Add(lease);
+                availableMb += Math.Max(0, lease.EstimatedVramMb);
             }
 
-            if (hafizUsedMb + requiredVramMb > usableCeilingMb)
+            if (availableMb < requiredVramMb)
             {
+                var busyCount = existing.Count(l => l.IsBusy);
                 return new GpuAdmissionDecision(
                     false,
-                    $"Model requires {requiredVramMb} MB VRAM which exceeds safe budget ({usableCeilingMb} MB).",
-                    toUnload,
-                    externalProcesses.Count > 0);
+                    $"Insufficient safe VRAM. Measured free VRAM after safety margin and eligible idle HAFIZ releases: {availableMb} MB; required estimate: {requiredVramMb} MB. Busy HAFIZ workers: {busyCount}. No worker was unloaded.",
+                    Array.Empty<string>(),
+                    externalDetected);
             }
 
-            return new GpuAdmissionDecision(true, "Admitted within 16GB RTX 5000 VRAM budget.", toUnload, externalProcesses.Count > 0);
+            return new GpuAdmissionDecision(
+                true,
+                $"Admitted using measured free VRAM plus {toUnload.Count} eligible idle HAFIZ worker(s). External workloads remain untouched.",
+                toUnload.Select(l => l.WorkerId).ToList(),
+                externalDetected);
         }
     }
 
@@ -160,53 +202,91 @@ public sealed class GpuMemoryGuard
         {
             var cutoff = nowUtc - TimeSpan.FromSeconds(IdleUnloadSeconds);
             return _activeLeases.Values
-                .Where(l => l.LastUsedAtUtc < cutoff)
+                .Where(l => !l.IsBusy && l.LastUsedAtUtc < cutoff)
                 .Select(l => l.WorkerId)
                 .ToList();
         }
     }
 
     /// <summary>
-    /// Unloads ONLY HAFIZ-owned worker leases via the provided callback and measures real VRAM before/after.
-    /// External processes (Unsloth, LM Studio, ComfyUI) are strictly untouched.
+    /// Unloads only idle HAFIZ-owned workers confirmed stopped by the supervisor.
+    /// Busy workers are skipped; failed stops remain registered and are reported.
+    /// VRAM before/after values are measured independently and may not equal model allocation.
     /// </summary>
     public async Task<PurgeVramResult> PurgeHafizOnlyAsync(
-        Func<string, CancellationToken, Task> unloadWorkerAsync,
+        Func<string, CancellationToken, Task<bool>> unloadWorkerAsync,
         CancellationToken ct = default)
     {
         var before = await _hardwareInspector.ProbeGpuAsync(ct);
-        List<string> hafizWorkerIds;
-        lock (_sync)
-        {
-            hafizWorkerIds = _activeLeases.Keys.ToList();
-        }
+        var leases = GetActiveLeases();
+        var busy = leases.Where(l => l.IsBusy).Select(l => l.WorkerId).ToList();
+        var eligible = leases.Where(l => !l.IsBusy).Select(l => l.WorkerId).ToList();
+        var unloaded = new List<string>();
+        var failed = new List<string>();
 
-        foreach (var id in hafizWorkerIds)
+        foreach (var id in eligible)
         {
-            await unloadWorkerAsync(id, ct);
-            ReleaseLease(id);
+            ct.ThrowIfCancellationRequested();
+            bool stopped;
+            try
+            {
+                stopped = await unloadWorkerAsync(id, ct);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch
+            {
+                stopped = false;
+            }
+
+            if (stopped)
+            {
+                ReleaseLease(id);
+                unloaded.Add(id);
+            }
+            else
+            {
+                failed.Add(id);
+            }
         }
 
         var after = await _hardwareInspector.ProbeGpuAsync(ct);
         int? beforeMb = before.TelemetryAvailable ? before.UsedVramMb : null;
         int? afterMb = after.TelemetryAvailable ? after.UsedVramMb : null;
-        int? reclaimed = (beforeMb.HasValue && afterMb.HasValue) ? Math.Max(0, beforeMb.Value - afterMb.Value) : null;
+        int? reclaimed = beforeMb.HasValue && afterMb.HasValue
+            ? Math.Max(0, beforeMb.Value - afterMb.Value)
+            : null;
 
+        var success = busy.Count == 0 && failed.Count == 0;
         var externalCount = after.TelemetryAvailable
             ? after.ActiveProcesses.Count(p => !p.IsHafizOwned)
             : 0;
 
-        var msg = before.TelemetryAvailable && after.TelemetryAvailable
-            ? $"Unloaded {hafizWorkerIds.Count} HAFIZ worker(s). Measured VRAM: {beforeMb} MB -> {afterMb} MB (reclaimed {reclaimed} MB). External GPU processes preserved: {externalCount}."
-            : $"Unloaded {hafizWorkerIds.Count} HAFIZ worker(s). Live GPU telemetry unavailable in current environment; no external processes were touched.";
+        string message;
+        if (leases.Count == 0)
+        {
+            message = "No HAFIZ-owned workers are registered. No process was stopped.";
+        }
+        else if (success && before.TelemetryAvailable && after.TelemetryAvailable)
+        {
+            message = $"Stopped {unloaded.Count} idle HAFIZ worker(s). Measured total VRAM: {beforeMb} MB -> {afterMb} MB (change {reclaimed} MB). External GPU processes preserved: {externalCount}.";
+        }
+        else
+        {
+            message = $"Stopped {unloaded.Count} idle HAFIZ worker(s); skipped {busy.Count} busy worker(s); failed to stop {failed.Count}. External GPU processes were not targeted. Live VRAM telemetry: {(before.TelemetryAvailable && after.TelemetryAvailable ? "available" : "unavailable")}.";
+        }
 
         return new PurgeVramResult(
-            true,
-            hafizWorkerIds.Count,
-            beforeMb,
-            afterMb,
-            reclaimed,
+            Success: success,
+            UnloadedHafizWorkerCount: unloaded.Count,
+            VramBeforeMb: beforeMb,
+            VramAfterMb: afterMb,
+            ReclaimedMb: reclaimed,
             PreservedExternalWorkloads: true,
-            Message: msg);
+            SkippedBusyWorkerCount: busy.Count,
+            FailedWorkerIds: failed,
+            Message: message);
     }
 }

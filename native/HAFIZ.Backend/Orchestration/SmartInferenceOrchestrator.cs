@@ -15,11 +15,9 @@ public sealed record TaskRoutePlan(
     string Notes);
 
 /// <summary>
-/// Task-aware Smart Inference Orchestrator:
-/// - Keeps lightweight conversational stack warm when budget permits.
-/// - Supports switching seamlessly between HAFIZ-managed local llama.cpp and external LM Studio (127.0.0.1:1234).
-/// - Uses lazy initialization + SingleHeavyModelLock for BS-RoFormer, Demucs, and Seed-VC.
-/// - Never unloads external LM Studio models without explicit user permission.
+/// Task-aware route planning and safe HAFIZ-owned worker admission.
+/// This component plans and protects resources; it does not claim to load a model
+/// unless a concrete worker launch and readiness handshake have completed.
 /// </summary>
 public sealed class SmartInferenceOrchestrator
 {
@@ -79,7 +77,7 @@ public sealed class SmartInferenceOrchestrator
                 modelId,
                 RequiresHeavyVramSlot: true,
                 EstimatedVramMb: capability == ModelCapability.CodeAndAnalysisLlm ? 9600 : 6800,
-                Notes: "Routed to HAFIZ-managed llama-server.exe with Turing SM75 CUDA offload.");
+                Notes: "Planned embedded llama-server route. A real worker path and ready handshake are still required before inference.");
         }
 
         return capability switch
@@ -91,7 +89,7 @@ public sealed class SmartInferenceOrchestrator
                 "cohere-transcribe-03-2026-q4_0.gguf",
                 RequiresHeavyVramSlot: false,
                 EstimatedVramMb: 2400,
-                Notes: "Isolated transcribe.cpp worker (GGUF Cohere Transcribe requires transcribe.cpp, not llama.cpp)."),
+                Notes: "Planned transcribe.cpp route; readiness must be confirmed by the installed executable and model."),
 
             ModelCapability.TextToSpeech => new TaskRoutePlan(
                 "TextToSpeech",
@@ -100,7 +98,7 @@ public sealed class SmartInferenceOrchestrator
                 "voicetut-egyptian-tashkeel",
                 RequiresHeavyVramSlot: false,
                 EstimatedVramMb: 2600,
-                Notes: "Isolated Egyptian Arabic TTS + diacritics worker (FP16 SM75)."),
+                Notes: "Planned Egyptian TTS route; no audio is produced until the configured worker returns a real output."),
 
             ModelCapability.VoiceConversion => new TaskRoutePlan(
                 "VoiceConversion",
@@ -109,7 +107,7 @@ public sealed class SmartInferenceOrchestrator
                 "seed-vc-singing",
                 RequiresHeavyVramSlot: true,
                 EstimatedVramMb: 4400,
-                Notes: "Lazy-loaded Seed-VC singing & voice conversion worker (MiniMax excluded)."),
+                Notes: "Lazy-loaded Seed-VC worker plan (MiniMax excluded)."),
 
             ModelCapability.StemSeparation => new TaskRoutePlan(
                 "StemSeparation",
@@ -118,7 +116,7 @@ public sealed class SmartInferenceOrchestrator
                 "bs-roformer+htdemucs_6s",
                 RequiresHeavyVramSlot: true,
                 EstimatedVramMb: 3800,
-                Notes: "Lazy-loaded BS-RoFormer vocal isolation + Demucs 6-stems pipeline."),
+                Notes: "Lazy-loaded BS-RoFormer + Demucs worker plan; readiness and output files must be verified."),
 
             _ => new TaskRoutePlan(
                 capability.ToString(),
@@ -127,7 +125,7 @@ public sealed class SmartInferenceOrchestrator
                 "silero-vad-onnx",
                 RequiresHeavyVramSlot: false,
                 EstimatedVramMb: 128,
-                Notes: "Always-ready lightweight Silero VAD ONNX worker.")
+                Notes: "Planned lightweight VAD worker.")
         };
     }
 
@@ -158,7 +156,16 @@ public sealed class SmartInferenceOrchestrator
 
         foreach (var workerToUnload in decision.WorkersToUnloadFirst)
         {
-            await _supervisor.StopWorkerAsync(workerToUnload, ct);
+            var stopped = await _supervisor.StopWorkerAsync(workerToUnload, ct);
+            if (!stopped)
+            {
+                return new GpuAdmissionDecision(
+                    false,
+                    $"HAFIZ worker '{workerToUnload}' could not be confirmed stopped. The new operation was not admitted.",
+                    Array.Empty<string>(),
+                    decision.ExternalGpuWorkloadDetected);
+            }
+
             _gpuGuard.ReleaseLease(workerToUnload);
         }
 
@@ -167,6 +174,8 @@ public sealed class SmartInferenceOrchestrator
 
     public Task<PurgeVramResult> PurgeHafizVramAsync(CancellationToken ct = default)
     {
-        return _gpuGuard.PurgeHafizOnlyAsync((workerId, token) => _supervisor.StopWorkerAsync(workerId, token), ct);
+        return _gpuGuard.PurgeHafizOnlyAsync(
+            (workerId, token) => _supervisor.StopWorkerAsync(workerId, token),
+            ct);
     }
 }
