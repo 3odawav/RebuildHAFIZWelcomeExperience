@@ -56,6 +56,12 @@ public sealed partial class MainViewModel : ObservableObject
         ActiveWorkspace = WorkspaceSection.LyricsStudio;
         AssistantState = AvatarActivityState.Idle;
         CurrentExpression = ExpressionId.Neutral;
+        AssistantTranscript = string.Empty;
+        StatusBanner = string.Empty;
+        IsScanningModels = false;
+        ScanFilesCount = 0;
+        GpuTelemetry = GpuTelemetrySnapshot.Unavailable("Not probed yet.");
+        LmStudioConnected = false;
 
         foreach (var root in Settings.ScanDirectories)
         {
@@ -66,22 +72,22 @@ public sealed partial class MainViewModel : ObservableObject
     public AppSettings Settings { get; private set; }
     public LocalizationService Localization => _localization;
 
-    [ObservableProperty] private bool showStartupStage = true;
-    [ObservableProperty] private WorkspaceSection activeWorkspace = WorkspaceSection.LyricsStudio;
-    [ObservableProperty] private ThemePreset selectedTheme = ThemePreset.NightGraphiteGold;
-    [ObservableProperty] private UiLanguage selectedLanguage = UiLanguage.ArabicEgypt;
-    [ObservableProperty] private AssistantDockSide floatingDockSide = AssistantDockSide.Right;
-    [ObservableProperty] private AvatarActivityState assistantState = AvatarActivityState.Idle;
-    [ObservableProperty] private ExpressionId currentExpression = ExpressionId.Neutral;
-    [ObservableProperty] private string assistantTranscript = string.Empty;
-    [ObservableProperty] private string statusBanner = string.Empty;
-    [ObservableProperty] private bool isScanningModels;
-    [ObservableProperty] private int scanFilesCount;
-    [ObservableProperty] private GpuTelemetrySnapshot gpuTelemetry = GpuTelemetrySnapshot.Unavailable("Not probed yet.");
-    [ObservableProperty] private LocalInferenceProvider llmProvider = LocalInferenceProvider.EmbeddedLlamaCpp;
-    [ObservableProperty] private string lmStudioBaseUrl = "http://127.0.0.1:1234";
-    [ObservableProperty] private string selectedLmStudioModelId = string.Empty;
-    [ObservableProperty] private bool lmStudioConnected;
+    [ObservableProperty] public partial bool ShowStartupStage { get; set; }
+    [ObservableProperty] public partial WorkspaceSection ActiveWorkspace { get; set; }
+    [ObservableProperty] public partial ThemePreset SelectedTheme { get; set; }
+    [ObservableProperty] public partial UiLanguage SelectedLanguage { get; set; }
+    [ObservableProperty] public partial AssistantDockSide FloatingDockSide { get; set; }
+    [ObservableProperty] public partial AvatarActivityState AssistantState { get; set; }
+    [ObservableProperty] public partial ExpressionId CurrentExpression { get; set; }
+    [ObservableProperty] public partial string AssistantTranscript { get; set; }
+    [ObservableProperty] public partial string StatusBanner { get; set; }
+    [ObservableProperty] public partial bool IsScanningModels { get; set; }
+    [ObservableProperty] public partial int ScanFilesCount { get; set; }
+    [ObservableProperty] public partial GpuTelemetrySnapshot GpuTelemetry { get; set; }
+    [ObservableProperty] public partial LocalInferenceProvider LlmProvider { get; set; }
+    [ObservableProperty] public partial string LmStudioBaseUrl { get; set; }
+    [ObservableProperty] public partial string SelectedLmStudioModelId { get; set; }
+    [ObservableProperty] public partial bool LmStudioConnected { get; set; }
 
     public ObservableCollection<string> ScanRoots { get; } = new();
     public ObservableCollection<DiscoveredModelEntry> DiscoveredModels { get; } = new();
