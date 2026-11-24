@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import {
   ACTION_CONTRACTS,
+  HEALTH_ACTION_CONTRACT_IDS,
   ORCHESTRATOR_STATES,
   TARGET_HARDWARE_SPEC,
   TASK_ROUTING_TABLE,
@@ -80,7 +81,7 @@ interface SettingsCenterViewProps {
   avatarState: AvatarState
   onToggleMic: () => void
   onPurgeVram: () => void
-  onBlocked: () => void
+  onBlocked: (message?: string) => void
   onExportDiagnostics: () => void
   onOpenWizard: () => void
 }
@@ -166,6 +167,11 @@ export function SettingsCenterView({
 }: SettingsCenterViewProps) {
   const [selectedContractId, setSelectedContractId] = useState(ACTION_CONTRACTS[0].id)
   const selectedContract = ACTION_CONTRACTS.find(c => c.id === selectedContractId) ?? ACTION_CONTRACTS[0]
+  const blockedWithContract = (key: keyof typeof HEALTH_ACTION_CONTRACT_IDS) => () => {
+    const id = HEALTH_ACTION_CONTRACT_IDS[key]
+    setSelectedContractId(id)
+    onBlocked(`${t.noticeCompanionBlocked} · ${id}`)
+  }
   const tokens = getThemeTokens(theme)
   const compactPad = density === 'compact' ? 'p-4' : 'p-5 sm:p-6'
   const normalizedPartitions = new Set(scanPartitions.map(p => normalizeWindowsPath(p).toLowerCase()))
@@ -662,8 +668,8 @@ export function SettingsCenterView({
               ))}
             </ul>
             <div className="flex flex-wrap gap-2.5 pt-2">
-              <button type="button" className={tokens.button} onClick={onBlocked}>{t.healthActions.verifyCuda}</button>
-              <button type="button" className={tokens.button} onClick={onBlocked}>{t.healthActions.restoreKnownGood}</button>
+              <button type="button" className={tokens.button} onClick={blockedWithContract('verifyCuda')}>{t.healthActions.verifyCuda}</button>
+              <button type="button" className={tokens.button} onClick={blockedWithContract('restoreKnownGood')}>{t.healthActions.restoreKnownGood}</button>
             </div>
           </div>
         )}
@@ -769,7 +775,7 @@ export function SettingsCenterView({
             <div className="flex flex-wrap gap-2.5">
               <button type="button" className={tokens.button} onClick={onOpenWizard}>{t.openFirstRunWizard}</button>
               <button type="button" className={tokens.button} onClick={onOpenScanner}>{t.scanModelLibraries}</button>
-              <button type="button" className={tokens.button} onClick={onBlocked}>{t.continueDownloads}</button>
+              <button type="button" className={tokens.button} onClick={blockedWithContract('continueDownloads')}>{t.continueDownloads}</button>
             </div>
           </div>
         )}
@@ -823,15 +829,15 @@ export function SettingsCenterView({
               <button type="button" className={`${tokens.button} ${tokens.buttonActive}`} onClick={onProbeBackend}>
                 {t.backendProbeBtn}
               </button>
-              <button type="button" className={tokens.button} onClick={onBlocked}>{t.healthActions.checkUpdates}</button>
-              <button type="button" className={tokens.button} onClick={onBlocked}>{t.healthActions.repairRuntime}</button>
-              <button type="button" className={tokens.button} onClick={onBlocked}>{t.healthActions.verifyCuda}</button>
+              <button type="button" className={tokens.button} onClick={blockedWithContract('checkUpdates')}>{t.healthActions.checkUpdates}</button>
+              <button type="button" className={tokens.button} onClick={blockedWithContract('repairRuntime')}>{t.healthActions.repairRuntime}</button>
+              <button type="button" className={tokens.button} onClick={blockedWithContract('verifyCuda')}>{t.healthActions.verifyCuda}</button>
               <button type="button" className={tokens.button} onClick={onOpenScanner}>{t.healthActions.scanLibraries}</button>
-              <button type="button" className={tokens.button} onClick={onBlocked}>{t.healthActions.runDiagnostics}</button>
+              <button type="button" className={tokens.button} onClick={blockedWithContract('runDiagnostics')}>{t.healthActions.runDiagnostics}</button>
               <button type="button" className={`${tokens.button} ${tokens.buttonAccent}`} onClick={onExportDiagnostics}>
                 {t.healthActions.exportReport}
               </button>
-              <button type="button" className={tokens.button} onClick={onBlocked}>{t.healthActions.restoreKnownGood}</button>
+              <button type="button" className={tokens.button} onClick={blockedWithContract('restoreKnownGood')}>{t.healthActions.restoreKnownGood}</button>
               <button type="button" className={tokens.button} onClick={onOpenWizard}>{t.openFirstRunWizard}</button>
             </div>
           </div>

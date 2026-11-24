@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   ACTION_CONTRACTS,
+  HEALTH_ACTION_CONTRACT_IDS,
   MODEL_CATALOG,
   ORCHESTRATOR_STATES,
   TASK_ROUTING_TABLE,
@@ -51,6 +52,14 @@ test('every model catalog entry and backend action contract is complete and Turi
   assert.ok(ACTION_CONTRACTS.length >= 6)
   for (const c of ACTION_CONTRACTS) {
     assert.ok(c.id && c.labelAr && c.labelEn && c.endpoint && c.requiredService && c.inputSchema && c.outputSchema)
+  }
+})
+
+test('every health/maintenance button maps to a unique documented action contract', () => {
+  const ids = new Set(ACTION_CONTRACTS.map(c => c.id))
+  assert.equal(ids.size, ACTION_CONTRACTS.length)
+  for (const id of Object.values(HEALTH_ACTION_CONTRACT_IDS)) {
+    assert.ok(ids.has(id), `missing contract ${id}`)
   }
 })
 
