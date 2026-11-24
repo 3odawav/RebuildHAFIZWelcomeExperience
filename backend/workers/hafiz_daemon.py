@@ -298,20 +298,36 @@ class HafizDaemonState:
 
     def purge_hafiz_only(self) -> Dict[str, Any]:
         before = probe_nvidia_gpu()
-        unloaded = list(self.active_hafiz_workers.keys())
-        self.active_hafiz_workers.clear()
-        after = probe_nvidia_gpu()
 
+        # This daemon currently has no process-stop adapter or registered worker handles.
+        # Clearing a dictionary is not model unloading, so never report it as such.
+        registered = list(self.active_hafiz_workers.keys())
+        after = probe_nvidia_gpu()
         before_mb = before.get("usedVramMb") if before.get("available") else None
         after_mb = after.get("usedVramMb") if after.get("available") else None
-        reclaimed = max(0, before_mb - after_mb) if (before_mb is not None and after_mb is not None) else None
+        if registered:
+            return {
+                "ok": False,
+                "status": "unload_adapter_missing",
+                "unloadedHafizWorkers": [],
+                "failedWorkers": registered,
+                "vramBeforeMb": before_mb,
+                "vramAfterMb": after_mb,
+                "reclaimedMb": None,
+                "externalWorkloadsPreserved": True,
+                "message": "HAFIZ workers are registered, but this daemon has no verified stop adapter. No process was terminated.",
+            }
+
         return {
             "ok": True,
-            "unloadedHafizWorkers": unloaded,
+            "status": "nothing_to_unload",
+            "unloadedHafizWorkers": [],
+            "failedWorkers": [],
             "vramBeforeMb": before_mb,
             "vramAfterMb": after_mb,
-            "reclaimedMb": reclaimed,
+            "reclaimedMb": 0 if before_mb is not None and after_mb is not None else None,
             "externalWorkloadsPreserved": True,
+            "message": "No HAFIZ-owned workers are registered with this daemon. No process was stopped.",
         }
 
 
