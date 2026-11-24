@@ -16,11 +16,13 @@
     "maxSafeSingleModelVramMb": 14000,
     "bf16NativeSupported": false,
     "requiredFloatPrecision": "float16",
-    "forbiddenBackends": ["minimax-cover"]
+    "forbiddenBackends": [
+      "minimax-cover"
+    ]
   },
   "knownGoodPins": {
-    "dotnetSdk": "8.0.x",
-    "windowsAppSdk": "1.6.250108002",
+    "dotnetSdk": "10.0.x",
+    "windowsAppSdk": "2.7.0",
     "pythonWorkerVersion": "3.11.9",
     "pytorchCuda": "2.5.1+cu124",
     "onnxRuntime": "1.20.1",
@@ -31,8 +33,14 @@
   "vramOrchestration": {
     "singleHeavyModelLock": true,
     "idleUnloadTimeoutSeconds": 120,
-    "protectExternalGpuProcesses": ["LMStudio.exe", "lms.exe", "unsloth", "ComfyUI", "ollama.exe"],
-    "oversizedF16GuardGb": 12.0,
+    "protectExternalGpuProcesses": [
+      "LMStudio.exe",
+      "lms.exe",
+      "unsloth",
+      "ComfyUI",
+      "ollama.exe"
+    ],
+    "oversizedF16GuardGb": 12,
     "cohereTranscribeRuntime": "transcribe.cpp"
   }
 }
