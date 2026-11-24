@@ -6,7 +6,6 @@ using HAFIZ.Core.Localization;
 using HAFIZ.Core.Models;
 using HAFIZ.Core.Routing;
 using HAFIZ.Core.Settings;
-using HAFIZ.Infrastructure.Downloads;
 using HAFIZ.Infrastructure.Hardware;
 using HAFIZ.Infrastructure.Models;
 using HAFIZ.Infrastructure.Providers;
@@ -33,7 +32,6 @@ public sealed class HafizNativeTests
         var viseme = analyzer.AnalyzePcmFrame(silence, false).PrimaryExpression;
         Assert.Equal(ExpressionId.Neutral, viseme);
 
-        // Loud vowel-like low-ZCR sine burst should open mouth
         var vowel = new float[512];
         for (int i = 0; i < vowel.Length; i++)
         {
@@ -72,7 +70,6 @@ public sealed class HafizNativeTests
         Directory.CreateDirectory(tempDir);
         try
         {
-            var path = Path.Combine(tempDir, "settings.json");
             var store = new SettingsStore(tempDir);
             var settings = new AppSettings
             {
@@ -104,8 +101,7 @@ public sealed class HafizNativeTests
         try
         {
             var coherePath = Path.Combine(tempDir, "cohere-transcribe-03-2026-q4_0.gguf");
-            await File.WriteAllBytesAsync(coherePath, new byte[6 * 1024 * 1024]); // 6 MB dummy GGUF
-
+            await File.WriteAllBytesAsync(coherePath, new byte[6 * 1024 * 1024]);
             var scanner = new MultiDriveModelScanner();
             var indexPath = Path.Combine(tempDir, "index", "model-index.json");
             var found = await scanner.ScanInPlaceAsync(new[] { tempDir }, indexPath);
@@ -113,7 +109,7 @@ public sealed class HafizNativeTests
             Assert.Single(found);
             Assert.Equal(ModelRuntimeEngine.TranscribeCpp, found[0].RequiredEngine);
             Assert.True(found[0].InPlaceLinked);
-            Assert.True(File.Exists(coherePath)); // Never moved or deleted
+            Assert.True(File.Exists(coherePath));
             Assert.True(File.Exists(indexPath));
         }
         finally
@@ -144,22 +140,57 @@ public sealed class HafizNativeTests
         var guard = new GpuMemoryGuard(fakeInspector);
         guard.RegisterLease(new LoadedWorkerLease("hafiz-llama-server", "Qwen 3.5", ModelCapability.AssistantLlm, 2040, true, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow));
 
-        // 8000 MB new model should be blocked because 16384 - 1800 margin - 8200 LM Studio = 6384 MB usable
+        // Measured free VRAM (6144) minus safety margin (1800), plus one eligible HAFIZ release (2040) is 6384 MB.
         var decision = await guard.EvaluateAdmissionAsync("hafiz-heavy-2", 8000, isHeavy: true, protectExternalGpuWorkloads: true);
         Assert.False(decision.Allowed);
         Assert.True(decision.ExternalGpuWorkloadDetected);
+        Assert.Empty(decision.WorkersToUnloadFirst); // A rejected admission must not unload anything.
 
         var unloaded = new List<string>();
         var purge = await guard.PurgeHafizOnlyAsync((id, _) =>
         {
             unloaded.Add(id);
-            return Task.CompletedTask;
+            return Task.FromResult(true);
         });
 
         Assert.True(purge.Success);
         Assert.True(purge.PreservedExternalWorkloads);
         Assert.Single(unloaded);
         Assert.Equal("hafiz-llama-server", unloaded[0]);
+    }
+
+    [Fact]
+    public async Task GpuMemoryGuard_PurgeSkipsBusyWorkers()
+    {
+        var inspector = new FakeHardwareInspector(GpuTelemetrySnapshot.Unavailable("test"));
+        var guard = new GpuMemoryGuard(inspector);
+        guard.RegisterLease(new LoadedWorkerLease(
+            "hafiz-active-llm", "Active LLM", ModelCapability.AssistantLlm, 5000, true,
+            DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, IsBusy: true));
+
+        var unloadCalls = new List<string>();
+        var result = await guard.PurgeHafizOnlyAsync((id, _) =>
+        {
+            unloadCalls.Add(id);
+            return Task.FromResult(true);
+        });
+
+        Assert.False(result.Success);
+        Assert.Equal(0, result.UnloadedHafizWorkerCount);
+        Assert.Equal(1, result.SkippedBusyWorkerCount);
+        Assert.Empty(unloadCalls);
+        Assert.Single(guard.GetActiveLeases());
+        Assert.Contains("busy worker", result.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task GpuMemoryGuard_RefusesHeavyAdmissionWhenTelemetryIsUnavailable()
+    {
+        var guard = new GpuMemoryGuard(new FakeHardwareInspector(GpuTelemetrySnapshot.Unavailable("nvidia-smi unavailable")));
+        var decision = await guard.EvaluateAdmissionAsync("hafiz-heavy", 3000, isHeavy: true);
+        Assert.False(decision.Allowed);
+        Assert.Empty(decision.WorkersToUnloadFirst);
+        Assert.Contains("telemetry is unavailable", decision.Reason, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
