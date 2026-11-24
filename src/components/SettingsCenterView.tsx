@@ -9,9 +9,7 @@ import {
 } from '../contracts/orchestrator'
 import type { AppTranslations, UiLanguage, VoiceLanguage } from '../i18n/translations'
 import type { AvatarState } from '../utils/avatarAnimation'
-import type { ExecutionProfile, ModelSetupMode, UiThemePreset } from '../utils/storageConfig'
 import type { DockSide } from './FloatingHafizAssistant'
-import { PartitionScanManager } from './PartitionScanManager'
 
 export type SettingsTabId = keyof AppTranslations['settingsTabs']
 
@@ -24,36 +22,16 @@ interface SettingsCenterViewProps {
   onLanguageChange: (lang: UiLanguage) => void
   voiceLanguage: VoiceLanguage
   onVoiceLanguageChange: (lang: VoiceLanguage) => void
-  themePreset: UiThemePreset
-  onThemePresetChange: (preset: UiThemePreset) => void
   uiScale: number
   onUiScaleChange: (scale: number) => void
-  workspaceDensity: 'comfortable' | 'compact'
-  onWorkspaceDensityChange: (density: 'comfortable' | 'compact') => void
-  reduceMotion: boolean
-  onReduceMotionChange: (val: boolean) => void
-  startupMode: 'avatar_first' | 'direct_studio'
-  onStartupModeChange: (mode: 'avatar_first' | 'direct_studio') => void
-  autosaveSec: number
-  onAutosaveSecChange: (sec: number) => void
   dockSide: DockSide
   onDockSideChange: (side: DockSide) => void
   speechEnabled: boolean
   onSpeechEnabledChange: (val: boolean) => void
-  speechRate: number
-  onSpeechRateChange: (rate: number) => void
-  autoGreet: boolean
-  onAutoGreetChange: (val: boolean) => void
   bargeIn: boolean
   onBargeInChange: (val: boolean) => void
   micMode: 'push_to_talk' | 'continuous'
   onMicModeChange: (mode: 'push_to_talk' | 'continuous') => void
-  executionProfile: ExecutionProfile
-  onExecutionProfileChange: (profile: ExecutionProfile) => void
-  contextWindow: number
-  onContextWindowChange: (tokens: number) => void
-  precisionPref: 'auto_turing' | 'fp16' | 'int8' | 'gguf_q4km'
-  onPrecisionPrefChange: (pref: 'auto_turing' | 'fp16' | 'int8' | 'gguf_q4km') => void
   idleTimeoutSec: number
   onIdleTimeoutSecChange: (sec: number) => void
   routerMode: boolean
@@ -62,30 +40,15 @@ interface SettingsCenterViewProps {
   onVramMarginGbChange: (gb: number) => void
   singleModelLock: boolean
   onSingleModelLockChange: (val: boolean) => void
-  appInstallDir: string
-  onAppInstallDirChange: (dir: string) => void
   modelDir: string
   onModelDirChange: (dir: string) => void
-  setupMode: ModelSetupMode
-  onSetupModeChange: (mode: ModelSetupMode) => void
-  scanPartitions: string[]
-  onScanPartitionsChange: (paths: string[]) => void
-  inPlaceLinking: boolean
-  onInPlaceLinkingChange: (val: boolean) => void
-  manualOverridesCount: number
-  downloadSpeedLimitMb: number
-  onDownloadSpeedLimitMbChange: (mb: number) => void
-  autoResumeDownloads: boolean
-  onAutoResumeDownloadsChange: (val: boolean) => void
   savedProjectsCount: number
   avatarState: AvatarState
   onToggleMic: () => void
   onPurgeVram: () => void
   onBlocked: () => void
-  onNotice: (msg: string) => void
   onExportDiagnostics: () => void
   onOpenWizard: () => void
-  onOpenModelLibrary: () => void
   buttonClass: string
   panelClass: string
   fieldClass: string
@@ -107,18 +70,6 @@ const TAB_ORDER: SettingsTabId[] = [
   'about',
 ]
 
-const SETUP_MODE_KEYS: readonly ModelSetupMode[] = [
-  'scan_in_place',
-  'hybrid_scan_then_download',
-  'download_all',
-]
-
-const EXECUTION_PROFILE_KEYS: readonly ExecutionProfile[] = [
-  'balanced_rtx5000',
-  'max_speed',
-  'low_vram_coexist',
-]
-
 export function SettingsCenterView({
   ar,
   t,
@@ -128,36 +79,16 @@ export function SettingsCenterView({
   onLanguageChange,
   voiceLanguage,
   onVoiceLanguageChange,
-  themePreset,
-  onThemePresetChange,
   uiScale,
   onUiScaleChange,
-  workspaceDensity,
-  onWorkspaceDensityChange,
-  reduceMotion,
-  onReduceMotionChange,
-  startupMode,
-  onStartupModeChange,
-  autosaveSec,
-  onAutosaveSecChange,
   dockSide,
   onDockSideChange,
   speechEnabled,
   onSpeechEnabledChange,
-  speechRate,
-  onSpeechRateChange,
-  autoGreet,
-  onAutoGreetChange,
   bargeIn,
   onBargeInChange,
   micMode,
   onMicModeChange,
-  executionProfile,
-  onExecutionProfileChange,
-  contextWindow,
-  onContextWindowChange,
-  precisionPref,
-  onPrecisionPrefChange,
   idleTimeoutSec,
   onIdleTimeoutSecChange,
   routerMode,
@@ -166,30 +97,15 @@ export function SettingsCenterView({
   onVramMarginGbChange,
   singleModelLock,
   onSingleModelLockChange,
-  appInstallDir,
-  onAppInstallDirChange,
   modelDir,
   onModelDirChange,
-  setupMode,
-  onSetupModeChange,
-  scanPartitions,
-  onScanPartitionsChange,
-  inPlaceLinking,
-  onInPlaceLinkingChange,
-  manualOverridesCount,
-  downloadSpeedLimitMb,
-  onDownloadSpeedLimitMbChange,
-  autoResumeDownloads,
-  onAutoResumeDownloadsChange,
   savedProjectsCount,
   avatarState,
   onToggleMic,
   onPurgeVram,
   onBlocked,
-  onNotice,
   onExportDiagnostics,
   onOpenWizard,
-  onOpenModelLibrary,
   buttonClass,
   panelClass,
   fieldClass,
@@ -233,194 +149,76 @@ export function SettingsCenterView({
 
         {activeTab === 'general' && (
           <div className="space-y-5">
-            <div className="grid gap-4 md:grid-cols-2">
-              <label className="block text-sm font-medium text-slate-100">
-                {t.interfaceLanguageLabel}
-                <select
-                  aria-label={t.interfaceLanguageLabel}
-                  value={language}
-                  onChange={e => onLanguageChange(e.target.value as UiLanguage)}
-                  className={`${fieldClass} mt-2`}
-                >
-                  <option value="ar">العربية المصرية (ar-EG · RTL)</option>
-                  <option value="en">English (en-US · LTR)</option>
-                </select>
-              </label>
+            <label className="block text-sm font-medium text-slate-100">
+              {t.interfaceLanguageLabel}
+              <select
+                aria-label={t.interfaceLanguageLabel}
+                value={language}
+                onChange={e => onLanguageChange(e.target.value as UiLanguage)}
+                className={`${fieldClass} mt-2 max-w-md`}
+              >
+                <option value="ar">العربية المصرية (ar-EG · RTL)</option>
+                <option value="en">English (en-US · LTR)</option>
+              </select>
+            </label>
 
-              <label className="block text-sm font-medium text-slate-100">
-                {t.autosaveIntervalLabel}
-                <select
-                  aria-label={t.autosaveIntervalLabel}
-                  value={autosaveSec}
-                  onChange={e => onAutosaveSecChange(Number(e.target.value))}
-                  className={`${fieldClass} mt-2`}
-                >
-                  <option value={5}>{ar ? 'فوري (كل 5 ثواني)' : 'Instant (every 5s)'}</option>
-                  <option value={15}>{ar ? 'كل 15 ثانية' : 'Every 15 seconds'}</option>
-                  <option value={30}>{ar ? 'كل 30 ثانية' : 'Every 30 seconds'}</option>
-                  <option value={0}>{ar ? 'يدوي فقط' : 'Manual only'}</option>
-                </select>
-              </label>
-            </div>
-
-            {/* Theme / Eye Comfort Preset */}
             <div>
-              <span className="block text-sm font-medium text-slate-100">{t.themePresetLabel}</span>
+              <span className="block text-sm font-medium text-slate-100">{t.uiScaleLabel}</span>
+              <p className="mt-1 text-xs text-slate-300">{t.uiScaleDesc}</p>
               <div className="mt-2.5 flex flex-wrap gap-2">
-                {([
-                  ['midnight_blue', t.themeMidnightBlue],
-                  ['graphite_gold', t.themeGraphiteGold],
-                  ['light_studio', t.themeLightStudio],
-                ] as const).map(([key, label]) => (
+                {[100, 112, 125].map(scale => (
                   <button
-                    key={key}
+                    key={scale}
                     type="button"
-                    aria-pressed={themePreset === key}
-                    onClick={() => onThemePresetChange(key)}
-                    className={`${buttonClass} ${themePreset === key ? 'border-cyan-400 bg-sky-500/20 text-cyan-100' : ''}`}
+                    aria-pressed={uiScale === scale}
+                    onClick={() => onUiScaleChange(scale)}
+                    className={`${buttonClass} ${uiScale === scale ? 'border-cyan-400 bg-sky-500/20 text-cyan-100' : ''}`}
                   >
-                    {label}
+                    <span dir="ltr">{scale}%</span>
                   </button>
                 ))}
               </div>
             </div>
 
-            <div className="grid gap-5 md:grid-cols-2">
-              <div>
-                <span className="block text-sm font-medium text-slate-100">{t.uiScaleLabel}</span>
-                <p className="mt-1 text-xs text-slate-300">{t.uiScaleDesc}</p>
-                <div className="mt-2.5 flex flex-wrap gap-2">
-                  {[100, 112, 125].map(scale => (
-                    <button
-                      key={scale}
-                      type="button"
-                      aria-pressed={uiScale === scale}
-                      onClick={() => onUiScaleChange(scale)}
-                      className={`${buttonClass} ${uiScale === scale ? 'border-cyan-400 bg-sky-500/20 text-cyan-100' : ''}`}
-                    >
-                      <span dir="ltr">{scale}%</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <span className="block text-sm font-medium text-slate-100">{t.workspaceDensityLabel}</span>
-                <div className="mt-2.5 flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    aria-pressed={workspaceDensity === 'comfortable'}
-                    onClick={() => onWorkspaceDensityChange('comfortable')}
-                    className={`${buttonClass} ${workspaceDensity === 'comfortable' ? 'border-cyan-400 bg-sky-500/20 text-cyan-100' : ''}`}
-                  >
-                    {t.densityComfortable}
-                  </button>
-                  <button
-                    type="button"
-                    aria-pressed={workspaceDensity === 'compact'}
-                    onClick={() => onWorkspaceDensityChange('compact')}
-                    className={`${buttonClass} ${workspaceDensity === 'compact' ? 'border-cyan-400 bg-sky-500/20 text-cyan-100' : ''}`}
-                  >
-                    {t.densityCompact}
-                  </button>
-                </div>
+            <div>
+              <span className="block text-sm font-medium text-slate-100">{t.assistantDockLabel}</span>
+              <div className="mt-2.5 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  aria-pressed={dockSide === 'right'}
+                  onClick={() => onDockSideChange('right')}
+                  className={`${buttonClass} ${dockSide === 'right' ? 'border-cyan-400 bg-sky-500/20 text-cyan-100' : ''}`}
+                >
+                  {t.dockRight}
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={dockSide === 'left'}
+                  onClick={() => onDockSideChange('left')}
+                  className={`${buttonClass} ${dockSide === 'left' ? 'border-cyan-400 bg-sky-500/20 text-cyan-100' : ''}`}
+                >
+                  {t.dockLeft}
+                </button>
               </div>
             </div>
-
-            <div className="grid gap-5 md:grid-cols-2">
-              <div>
-                <span className="block text-sm font-medium text-slate-100">{t.assistantDockLabel}</span>
-                <div className="mt-2.5 flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    aria-pressed={dockSide === 'right'}
-                    onClick={() => onDockSideChange('right')}
-                    className={`${buttonClass} ${dockSide === 'right' ? 'border-cyan-400 bg-sky-500/20 text-cyan-100' : ''}`}
-                  >
-                    {t.dockRight}
-                  </button>
-                  <button
-                    type="button"
-                    aria-pressed={dockSide === 'left'}
-                    onClick={() => onDockSideChange('left')}
-                    className={`${buttonClass} ${dockSide === 'left' ? 'border-cyan-400 bg-sky-500/20 text-cyan-100' : ''}`}
-                  >
-                    {t.dockLeft}
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <span className="block text-sm font-medium text-slate-100">{t.startupBehaviorLabel}</span>
-                <div className="mt-2.5 flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    aria-pressed={startupMode === 'avatar_first'}
-                    onClick={() => onStartupModeChange('avatar_first')}
-                    className={`${buttonClass} text-xs ${startupMode === 'avatar_first' ? 'border-cyan-400 bg-sky-500/20 text-cyan-100' : ''}`}
-                  >
-                    {t.startupAvatarFirst}
-                  </button>
-                  <button
-                    type="button"
-                    aria-pressed={startupMode === 'direct_studio'}
-                    onClick={() => onStartupModeChange('direct_studio')}
-                    className={`${buttonClass} text-xs ${startupMode === 'direct_studio' ? 'border-cyan-400 bg-sky-500/20 text-cyan-100' : ''}`}
-                  >
-                    {t.startupDirectStudio}
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <label className="flex min-h-11 items-center justify-between gap-4 rounded-xl border border-slate-800 bg-[#06111e]/70 p-4 text-sm">
-              <span>
-                <span className="block font-medium text-slate-100">{t.reduceMotionToggle}</span>
-                <span className="mt-1 block text-xs text-slate-300">{t.reduceMotionDesc}</span>
-              </span>
-              <input
-                type="checkbox"
-                checked={reduceMotion}
-                onChange={e => onReduceMotionChange(e.target.checked)}
-                className="h-5 w-5 shrink-0 accent-cyan-400"
-              />
-            </label>
           </div>
         )}
 
         {activeTab === 'assistant' && (
           <div className="space-y-5">
-            <div className="grid gap-4 md:grid-cols-2">
-              <label className="block text-sm font-medium text-slate-100">
-                {t.voiceLanguageLabel}
-                <p className="mt-1 text-xs font-normal text-slate-300">{t.voiceLanguageDesc}</p>
-                <select
-                  aria-label={t.voiceLanguageLabel}
-                  value={voiceLanguage}
-                  onChange={e => onVoiceLanguageChange(e.target.value as VoiceLanguage)}
-                  className={`${fieldClass} mt-2`}
-                >
-                  <option value="ar-EG">العامية المصرية (ar-EG)</option>
-                  <option value="en-US">English (en-US)</option>
-                </select>
-              </label>
-
-              <label className="rounded-xl border border-slate-800 bg-[#06111e]/70 p-4 text-sm">
-                <span className="flex items-center justify-between font-medium text-slate-100">
-                  <span>{t.speechRateLabel}</span>
-                  <span dir="ltr" className="font-mono text-cyan-200">{speechRate.toFixed(2)}x</span>
-                </span>
-                <input
-                  type="range"
-                  min={0.75}
-                  max={1.25}
-                  step={0.05}
-                  value={speechRate}
-                  onChange={e => onSpeechRateChange(Number(e.target.value))}
-                  className="mt-3 w-full accent-cyan-400"
-                />
-              </label>
-            </div>
+            <label className="block text-sm font-medium text-slate-100">
+              {t.voiceLanguageLabel}
+              <p className="mt-1 text-xs font-normal text-slate-300">{t.voiceLanguageDesc}</p>
+              <select
+                aria-label={t.voiceLanguageLabel}
+                value={voiceLanguage}
+                onChange={e => onVoiceLanguageChange(e.target.value as VoiceLanguage)}
+                className={`${fieldClass} mt-2 max-w-md`}
+              >
+                <option value="ar-EG">العامية المصرية (ar-EG)</option>
+                <option value="en-US">English (en-US)</option>
+              </select>
+            </label>
 
             <label className="flex min-h-11 items-center justify-between gap-4 rounded-xl border border-slate-800 bg-[#06111e]/70 p-4 text-sm">
               <span>{t.browserSpeechToggle}</span>
@@ -428,19 +226,6 @@ export function SettingsCenterView({
                 type="checkbox"
                 checked={speechEnabled}
                 onChange={e => onSpeechEnabledChange(e.target.checked)}
-                className="h-5 w-5 shrink-0 accent-cyan-400"
-              />
-            </label>
-
-            <label className="flex min-h-11 items-center justify-between gap-4 rounded-xl border border-slate-800 bg-[#06111e]/70 p-4 text-sm">
-              <span>
-                <span className="block font-medium text-slate-100">{t.autoGreetToggle}</span>
-                <span className="mt-1 block text-xs text-slate-300">{t.autoGreetDesc}</span>
-              </span>
-              <input
-                type="checkbox"
-                checked={autoGreet}
-                onChange={e => onAutoGreetChange(e.target.checked)}
                 className="h-5 w-5 shrink-0 accent-cyan-400"
               />
             </label>
@@ -536,65 +321,6 @@ export function SettingsCenterView({
 
         {activeTab === 'orchestrator' && (
           <div className="space-y-5">
-            {/* Execution Profile Presets */}
-            <div>
-              <h3 className="text-sm font-medium text-sky-200">{t.executionProfileLabel}</h3>
-              <div className="mt-2.5 grid gap-2.5 md:grid-cols-3">
-                {EXECUTION_PROFILE_KEYS.map(key => {
-                  const active = executionProfile === key
-                  const copy = t.executionProfiles[key]
-                  return (
-                    <button
-                      key={key}
-                      type="button"
-                      aria-pressed={active}
-                      onClick={() => onExecutionProfileChange(key)}
-                      className={`rounded-xl border p-3.5 text-start transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 ${
-                        active
-                          ? 'border-cyan-400 bg-sky-500/20 text-sky-50'
-                          : 'border-slate-800 bg-[#06111e]/75 text-slate-300 hover:border-sky-600/60'
-                      }`}
-                    >
-                      <span className="block text-xs font-semibold text-cyan-100">{copy.title}</span>
-                      <span className="mt-1.5 block text-xs leading-5 text-slate-300">{copy.desc}</span>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <label className="block text-sm font-medium text-slate-100">
-                {t.contextWindowLabel}
-                <select
-                  aria-label={t.contextWindowLabel}
-                  value={contextWindow}
-                  onChange={e => onContextWindowChange(Number(e.target.value))}
-                  className={`${fieldClass} mt-2`}
-                >
-                  <option value={4096}>4,096 tokens ({ar ? 'سريع وخفيف' : 'Fast & low VRAM'})</option>
-                  <option value={8192}>8,192 tokens ({ar ? 'متوازن — افتراضي' : 'Balanced — default'})</option>
-                  <option value={16384}>16,384 tokens ({ar ? 'أغاني طويلة ومشاريع' : 'Long lyrics & context'})</option>
-                  <option value={32768}>32,768 tokens ({ar ? 'سياق موسّع' : 'Extended context'})</option>
-                </select>
-              </label>
-
-              <label className="block text-sm font-medium text-slate-100">
-                {t.precisionPreferenceLabel}
-                <select
-                  aria-label={t.precisionPreferenceLabel}
-                  value={precisionPref}
-                  onChange={e => onPrecisionPrefChange(e.target.value as 'auto_turing' | 'fp16' | 'int8' | 'gguf_q4km')}
-                  className={`${fieldClass} mt-2`}
-                >
-                  <option value="auto_turing">Auto Turing SM 7.5 (FP16 / GGUF Q4_K_M)</option>
-                  <option value="fp16">FP16 Tensor Cores (No BF16)</option>
-                  <option value="int8">INT8 Quantized (Whisper / Audio)</option>
-                  <option value="gguf_q4km">GGUF Q4_K_M (llama.cpp)</option>
-                </select>
-              </label>
-            </div>
-
             <div className="rounded-xl border border-slate-800 bg-[#06111e]/85 p-4">
               <h3 className="text-sm font-medium text-sky-200">{t.orchestratorStateTitle}</h3>
               <div dir="ltr" className="mt-3 flex flex-wrap gap-1.5 font-mono text-[11px]">
@@ -780,111 +506,19 @@ export function SettingsCenterView({
         )}
 
         {activeTab === 'downloadsStorage' && (
-          <div className="space-y-5">
-            {/* EXE / First-Run Model Mode Selector */}
-            <div>
-              <h3 className="text-sm font-medium text-sky-200">{t.setupModeTitle}</h3>
-              <p className="mt-1 text-xs leading-5 text-slate-300">{t.setupModeDesc}</p>
-              <div className="mt-2.5 grid gap-2.5 md:grid-cols-3">
-                {SETUP_MODE_KEYS.map(modeKey => {
-                  const active = setupMode === modeKey
-                  const copy = t.setupModes[modeKey]
-                  return (
-                    <button
-                      key={modeKey}
-                      type="button"
-                      aria-pressed={active}
-                      onClick={() => onSetupModeChange(modeKey)}
-                      className={`rounded-xl border p-3.5 text-start transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 ${
-                        active
-                          ? 'border-cyan-400 bg-sky-500/20 text-sky-50'
-                          : 'border-slate-800 bg-[#06111e]/75 text-slate-300 hover:border-sky-600/60'
-                      }`}
-                    >
-                      <span className="block text-xs font-semibold text-cyan-100">{copy.title}</span>
-                      <span className="mt-1.5 block text-xs leading-5 text-slate-300">{copy.desc}</span>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <label className="block text-sm font-medium text-slate-100">
-                {t.appInstallDirLabel}
-                <input
-                  dir="ltr"
-                  value={appInstallDir}
-                  onChange={e => onAppInstallDirChange(e.target.value)}
-                  className={`${fieldClass} mt-2 font-mono text-xs text-cyan-100`}
-                  placeholder="E:\HAFIZ_In_Slang"
-                />
-                <span className="mt-1.5 block text-xs font-normal text-slate-300">{t.appInstallDirHint}</span>
-              </label>
-
-              <label className="block text-sm font-medium text-slate-100">
-                {t.storageDirLabel}
-                <input
-                  dir="ltr"
-                  value={modelDir}
-                  onChange={e => onModelDirChange(e.target.value)}
-                  className={`${fieldClass} mt-2 font-mono text-xs text-cyan-100`}
-                  placeholder="E:\HAFIZ_Models"
-                />
-                <span className="mt-1.5 block text-xs font-normal text-slate-300">{t.storageDirHint}</span>
-              </label>
-            </div>
-
-            {/* Multi-Partition / Multi-Folder Scanner (E:\, D:\...) */}
-            <PartitionScanManager
-              t={t}
-              scanPartitions={scanPartitions}
-              onScanPartitionsChange={onScanPartitionsChange}
-              inPlaceLinking={inPlaceLinking}
-              onInPlaceLinkingChange={onInPlaceLinkingChange}
-              onNotice={onNotice}
-              buttonClass={buttonClass}
-              fieldClass={fieldClass}
-            />
-
-            {/* Bandwidth & Auto-Resume Controls */}
-            <div className="grid gap-4 md:grid-cols-2">
-              <label className="block text-sm font-medium text-slate-100">
-                {t.downloadSpeedLimitLabel}
-                <select
-                  aria-label={t.downloadSpeedLimitLabel}
-                  value={downloadSpeedLimitMb}
-                  onChange={e => onDownloadSpeedLimitMbChange(Number(e.target.value))}
-                  className={`${fieldClass} mt-2`}
-                >
-                  <option value={0}>{t.downloadSpeedUnlimited}</option>
-                  <option value={5}>5 MB/s</option>
-                  <option value={15}>15 MB/s</option>
-                  <option value={50}>50 MB/s</option>
-                </select>
-              </label>
-
-              <label className="flex items-start justify-between gap-3 rounded-xl border border-slate-800 bg-[#06111e]/70 p-4 text-sm">
-                <span>
-                  <span className="block font-medium text-slate-100">{t.autoResumeToggle}</span>
-                  <span className="mt-1 block text-xs text-slate-300">{t.autoResumeDesc}</span>
-                </span>
-                <input
-                  type="checkbox"
-                  checked={autoResumeDownloads}
-                  onChange={e => onAutoResumeDownloadsChange(e.target.checked)}
-                  className="mt-1 h-5 w-5 shrink-0 accent-cyan-400"
-                />
-              </label>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2.5">
-              <button type="button" className={`${buttonClass} border-cyan-400/60 bg-sky-500/15 text-cyan-100`} onClick={onOpenWizard}>
-                {t.openFirstRunWizard}
-              </button>
-              <button type="button" className={buttonClass} onClick={onOpenModelLibrary}>
-                {t.navModels} {manualOverridesCount > 0 ? `(${manualOverridesCount})` : ''}
-              </button>
+          <div className="space-y-4">
+            <label className="block text-sm font-medium text-slate-100">
+              {t.storageDirLabel}
+              <input
+                dir="ltr"
+                value={modelDir}
+                onChange={e => onModelDirChange(e.target.value)}
+                className={`${fieldClass} mt-2 max-w-xl font-mono text-xs text-cyan-100`}
+              />
+            </label>
+            <p className="text-xs leading-6 text-slate-300">{t.storageDirHint}</p>
+            <div className="flex flex-wrap gap-2.5">
+              <button type="button" className={buttonClass} onClick={onOpenWizard}>{t.openFirstRunWizard}</button>
               <button type="button" className={buttonClass} onClick={onBlocked}>{t.scanModelLibraries}</button>
               <button type="button" className={buttonClass} onClick={onBlocked}>{t.continueDownloads}</button>
             </div>
@@ -912,8 +546,8 @@ export function SettingsCenterView({
           <div className="space-y-4 text-sm text-slate-200">
             <p className="rounded-xl border border-slate-800 bg-[#06111e]/75 p-4 leading-6">
               {ar
-                ? `عدد المشاريع والمسودات المحفوظة محليًا في هذا المتصفح: ${savedProjectsCount}. عدد المسارات اليدوية المربوطة في مكانها للموديلات: ${manualOverridesCount}. ملفات الأصوات المرجعية المصرّح بها تُخزّن محليًا فقط عند ربط محرك ويندوز.`
-                : `Locally saved lyric projects in this browser: ${savedProjectsCount}. Manual in-place model path overrides configured: ${manualOverridesCount}. Authorized reference voice profiles stay strictly local when connected to the Windows companion.`}
+                ? `عدد المشاريع والمسودات المحفوظة محليًا في هذا المتصفح: ${savedProjectsCount}. ملفات الأصوات المرجعية المصرّح بها تُخزّن محليًا فقط عند ربط محرك ويندوز.`
+                : `Locally saved lyric projects in this browser: ${savedProjectsCount}. Authorized reference voice profiles stay strictly local when connected to the Windows companion.`}
             </p>
           </div>
         )}

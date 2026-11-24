@@ -475,11 +475,11 @@ export function resolveHafizIntent(rawInput: string): HafizIntentResult {
       replyEn: 'Opening AI Model Library.',
     }
   }
-  if (/تحميل|تنزيل|تثبيت|بارتيشن|سكان|مسح|download|install|partition|scan/.test(value)) {
+  if (/تحميل|تنزيل|تثبيت|download|install/.test(value)) {
     return {
       route: 'setup/downloads',
-      replyAr: 'هفتحلك مركز التحميل ومسح البارتيشنات وتثبيت البرنامج على E:.',
-      replyEn: 'Opening Downloads, Multi-Partition Scanner, and Installation.',
+      replyAr: 'هفتحلك مركز التحميل والتثبيت.',
+      replyEn: 'Opening Downloads and Installation.',
     }
   }
   if (/إعدادات|اعدادات|setting|config|ضبط|gpu|vram|ذاكرة|كارت|تشخيص|diagnostic|orchestrator|منسق/.test(value)) {
