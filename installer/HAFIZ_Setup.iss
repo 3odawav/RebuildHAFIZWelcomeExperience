@@ -88,23 +88,23 @@ end;
 function GetDefaultInstallDir(Param: String): String;
 begin
   // Prefer the user's existing D: install volume; never default to a missing drive.
-  if DirExists('D:\\') then
-    Result := 'D:\\HAFIZ_In_Slang'
-  else if DirExists('E:\\') then
-    Result := 'E:\\HAFIZ_In_Slang'
+  if DirExists('D:\') then
+    Result := 'D:\HAFIZ_In_Slang'
+  else if DirExists('E:\') then
+    Result := 'E:\HAFIZ_In_Slang'
   else
-    Result := ExpandConstant('{autopf}\\HAFIZ In Slang');
+    Result := ExpandConstant('{autopf}\HAFIZ In Slang');
 end;
 
 function GetDefaultModelStoragePath(Param: String): String;
 begin
   // Keep the preferred E: model volume when available, then D:, then LocalAppData.
   if DirExists('E:\\') then
-    Result := 'E:\\HAFIZ_Models'
+    Result := 'E:\HAFIZ_Models'
   else if DirExists('D:\\') then
-    Result := 'D:\\HAFIZ_Models'
+    Result := 'D:\HAFIZ_Models'
   else
-    Result := ExpandConstant('{localappdata}\\HAFIZ_Models');
+    Result := ExpandConstant('{localappdata}\HAFIZ_Models');
 end;
 
 procedure InitializeWizard;
