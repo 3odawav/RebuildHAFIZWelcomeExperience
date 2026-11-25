@@ -34,9 +34,10 @@ public sealed partial class MainWindow : Window
 
         _viewModel.PropertyChanged += OnViewModelPropertyChanged;
         _viewModel.SpeechSamples += (pcm,rate) => { StartupStage.PushAudioSamples(pcm,rate); FloatingAssistant.PushAudioSamples(pcm,rate); };
-        Closed += (_,_) => _viewModel.CancelVoiceOperation();
+        Closed += (_,_) => _viewModel.CloseVoiceSession();
         ApplyThemeAndDirection();
         SyncWorkspaceVisibility();
+        FloatingAssistant.HorizontalAlignment = _viewModel.FloatingDockSide == AssistantDockSide.Left ? HorizontalAlignment.Left : HorizontalAlignment.Right;
 
         _ = _viewModel.RefreshHardwareTelemetryAsync();
     }
@@ -123,6 +124,7 @@ public sealed partial class MainWindow : Window
         StartupStage.Visibility = showStartup ? Visibility.Visible : Visibility.Collapsed;
         WorkspaceNav.Visibility = showStartup ? Visibility.Collapsed : Visibility.Visible;
         FloatingAssistant.Visibility = showStartup ? Visibility.Collapsed : Visibility.Visible;
+        StartupStage.SetSceneRunning(showStartup && !_viewModel.Settings.ReduceMotion);
 
         LyricsView.Visibility = _viewModel.ActiveWorkspace == WorkspaceSection.LyricsStudio ? Visibility.Visible : Visibility.Collapsed;
         AudioView.Visibility = _viewModel.ActiveWorkspace == WorkspaceSection.AudioWeb ? Visibility.Visible : Visibility.Collapsed;

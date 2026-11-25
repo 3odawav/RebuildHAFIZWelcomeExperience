@@ -170,8 +170,8 @@ public sealed record AppSettings
     public string LocalTtsBaseUrl { get; set; } = "";
     public string LocalTtsModelId { get; set; } = "";
     public string LocalTtsVoice { get; set; } = "";
-    public string AppInstallDirectory { get; set; } = @"E:\HAFIZ_In_Slang";
-    public string ModelDownloadDirectory { get; set; } = @"E:\HAFIZ_Models";
+    public string AppInstallDirectory { get; set; } = @"E:\HAFIZ_New_Generation";
+    public string ModelDownloadDirectory { get; set; } = @"E:\HAFIZ_New_Generation_Models";
     public ModelSetupStrategy SetupStrategy { get; set; } = ModelSetupStrategy.UseExistingInPlace;
     public List<string> ScanDirectories { get; set; } =
     [

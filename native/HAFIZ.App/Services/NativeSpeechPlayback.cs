@@ -27,9 +27,10 @@ internal sealed class NativeSpeechPlayback
             int count = Math.Min(rate / 25,pcm.Data.Length-offset);
             if (count > 0) samples(pcm.Data.AsSpan(offset,count).ToArray(),rate);
         };
+        bool active=true;
         player.PlaybackSession.PlaybackStateChanged += (_,_) =>
             dispatcher.TryEnqueue(() => {
-                if (player.PlaybackSession.PlaybackState == MediaPlaybackState.Playing) state(AvatarActivityState.Speaking);
+                if (active && player.PlaybackSession.PlaybackState == MediaPlaybackState.Playing) state(AvatarActivityState.Speaking);
             });
         player.MediaEnded += (_,_) => done.TrySetResult(true);
         player.MediaFailed += (_,e) => done.TrySetException(new IOException(e.ErrorMessage));
@@ -44,6 +45,7 @@ internal sealed class NativeSpeechPlayback
         }
         finally
         {
+            active=false;
             timer.Stop();
             player.Pause();
             state(AvatarActivityState.Idle);

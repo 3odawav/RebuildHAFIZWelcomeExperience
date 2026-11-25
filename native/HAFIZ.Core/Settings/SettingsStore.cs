@@ -22,7 +22,7 @@ public sealed class SettingsStore
         var baseDir = string.IsNullOrWhiteSpace(customDirectory)
             ? Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "HAFIZ_In_Slang")
+                "HAFIZ_New_Generation")
             : customDirectory;
         Directory.CreateDirectory(baseDir);
         _settingsFilePath = Path.Combine(baseDir, "hafiz-settings.json");
@@ -34,7 +34,32 @@ public sealed class SettingsStore
     {
         if (!File.Exists(_settingsFilePath))
         {
-            return new AppSettings();
+            var initial = new AppSettings();
+            var bootstrap = Path.Combine(Path.GetDirectoryName(_settingsFilePath)!, "installer-bootstrap.json");
+            if (File.Exists(bootstrap))
+            {
+                try
+                {
+                    using var json = JsonDocument.Parse(File.ReadAllText(bootstrap));
+                    var root = json.RootElement;
+                    if(root.TryGetProperty("installRootPath",out var install) && install.GetString() is string installPath)
+                        initial.AppInstallDirectory=installPath;
+                    if(root.TryGetProperty("modelStoragePath",out var models) && models.GetString() is string modelPath)
+                        initial.ModelDownloadDirectory=modelPath;
+                    if(root.TryGetProperty("scanRootsRaw",out var scan) && scan.GetString() is string roots)
+                        initial.ScanDirectories=roots.Split(';',StringSplitOptions.TrimEntries|StringSplitOptions.RemoveEmptyEntries).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                    if(root.TryGetProperty("modelSetupStrategy",out var strategy))
+                        initial.SetupStrategy=strategy.GetString() switch {
+                            "download_all"=>ModelSetupStrategy.CompleteFreshInstall,
+                            "hybrid"=>ModelSetupStrategy.DownloadMissingOnly,
+                            _=>ModelSetupStrategy.UseExistingInPlace
+                        };
+                    Save(initial);
+                }
+                catch (JsonException) { /* A malformed bootstrap does not overwrite existing files. */ }
+                catch (IOException) { }
+            }
+            return initial;
         }
 
         try

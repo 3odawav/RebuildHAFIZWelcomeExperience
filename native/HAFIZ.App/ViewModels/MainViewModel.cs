@@ -82,7 +82,7 @@ public sealed partial class MainViewModel : ObservableObject
     public string? LastLyricsRecordingPath { get; private set; }
     public event Action<float[],int>? SpeechSamples;
     public string Localized(string ar, string en) => IsRightToLeft ? ar : en;
-    private string RecordingDirectory => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"HAFIZ_In_Slang","Recordings");
+    private string RecordingDirectory => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"HAFIZ_New_Generation","Recordings");
 
     private void SetActivity(AvatarActivityState state)
     {
@@ -170,6 +170,20 @@ public sealed partial class MainViewModel : ObservableObject
     }
 
     public void CancelVoiceOperation() => _operation?.Cancel();
+    public void CloseVoiceSession()
+    {
+        _operation?.Cancel();
+        _recording.Dispose();
+    }
+    public async Task<string?> TranscribeFileAsync(string path)
+    {
+        string? text=null;
+        await RunOperationAsync(async ct=>{
+            text=await TranscribeAsync(path,ct);
+            StatusBanner=Localized("تم التفريغ من المحرك المحلي.","Transcription received from local ASR.");
+        });
+        return text;
+    }
     public void ClearLyricsRecording() => LastLyricsRecordingPath=null;
 
     private async Task RunOperationAsync(Func<CancellationToken,Task> action)
@@ -247,14 +261,14 @@ public sealed partial class MainViewModel : ObservableObject
     {
         ActiveWorkspace = section;
         ShowStartupStage = false;
-        AssistantState = AvatarActivityState.Idle;
+        if(!IsVoiceBusy && !IsRecording) AssistantState = AvatarActivityState.Idle;
     }
 
     [RelayCommand]
     public void ReturnToStartupStage()
     {
         ShowStartupStage = true;
-        AssistantState = AvatarActivityState.Idle;
+        if(!IsVoiceBusy && !IsRecording) AssistantState = AvatarActivityState.Idle;
     }
 
     [RelayCommand]

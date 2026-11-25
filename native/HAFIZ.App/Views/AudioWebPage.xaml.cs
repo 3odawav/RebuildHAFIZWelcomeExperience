@@ -15,7 +15,7 @@ public sealed partial class AudioWebPage : UserControl
 
     public void Bind(MainViewModel viewModel) => _vm = viewModel;
 
-    private void OnRunTranscribeClick(object sender, RoutedEventArgs e)
+    private async void OnRunTranscribeClick(object sender, RoutedEventArgs e)
     {
         var path = AudioPathBox.Text?.Trim();
         if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
@@ -23,12 +23,15 @@ public sealed partial class AudioWebPage : UserControl
             AudioWebStatus.Text = "Select an existing local WAV/MP3/FLAC file before running transcribe.cpp.";
             return;
         }
-        AudioWebStatus.Text = $"Queued {Path.GetFileName(path)} to isolated transcribe.cpp worker (Cohere Transcribe GGUF).";
+        if(_vm is null) return;
+        var result=await _vm.TranscribeFileAsync(path);
+        if(result is not null) TranscriptResultBox.Text=result;
+        AudioWebStatus.Text=_vm.StatusBanner;
     }
 
     private void OnAnalyzeMusicClick(object sender, RoutedEventArgs e)
     {
-        AudioWebStatus.Text = "Music tempo & key analysis routed to local Python audio worker.";
+        AudioWebStatus.Text = _vm?.Localized("محرك تحليل الموسيقى غير موصول بعد.","Music analysis engine is not connected yet.");
     }
 
     private void OnQueueWebIngestClick(object sender, RoutedEventArgs e)
@@ -39,6 +42,6 @@ public sealed partial class AudioWebPage : UserControl
             AudioWebStatus.Text = "Enter a supported URL first.";
             return;
         }
-        AudioWebStatus.Text = $"Validated URL for isolated media ingest worker: {url}";
+        AudioWebStatus.Text = _vm?.Localized("محرك استيراد الوسائط غير موصول بعد.","Media ingest engine is not connected yet.");
     }
 }

@@ -1,0 +1,15 @@
+<UserControl
+    x:Class="HAFIZ.App.Controls.MatrixField"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid IsHitTestVisible="False">
+        <Grid.Background>
+            <RadialGradientBrush Center="0.5,0.43" GradientOrigin="0.5,0.43" RadiusX="0.7" RadiusY="0.8">
+                <GradientStop Color="#A0224B85" Offset="0"/>
+                <GradientStop Color="#8810325A" Offset="0.45"/>
+                <GradientStop Color="#00101E34" Offset="1"/>
+            </RadialGradientBrush>
+        </Grid.Background>
+        <Canvas x:Name="Field" Opacity="0.60"/>
+    </Grid>
+</UserControl>

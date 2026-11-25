@@ -22,6 +22,12 @@ public sealed partial class FloatingHafizOverlay : UserControl
     {
         MiniAvatar.SetState(state, expression == ExpressionId.Neutral ? null : expression);
         AssistantStatusText.Text = statusLabel;
+        if(ViewModel is not null)
+        {
+            CompanionMicButton.Content=ViewModel.IsRecording?ViewModel.Localized("⏹ إيقاف","Stop"):ViewModel.Localized("🎤 اتكلم","Speak");
+            if(ViewModel.IsRecording) CompanionMicButton.Background=new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255,190,35,40));
+            else CompanionMicButton.ClearValue(Control.BackgroundProperty);
+        }
     }
 
     private void OnToggleDockClick(object sender, RoutedEventArgs e)

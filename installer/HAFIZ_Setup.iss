@@ -1,8 +1,8 @@
 ; ============================================================================
 ; HAFIZ In Slang — Official Native Windows 11 Installer (Inno Setup 6)
 ; Bilingual Arabic (RTL) & English (LTR) Setup Wizard
-; Default Program Path: D:\HAFIZ_In_Slang when D: exists; safe fallback otherwise
-; Default Model Storage Path: E:\HAFIZ_Models when E: exists; safe fallback otherwise
+; Default Program Path: D:\HAFIZ_New_Generation when D: exists; safe fallback otherwise
+; Default Model Storage Path: E:\HAFIZ_New_Generation_Models when E: exists; safe fallback otherwise
 ; Supports 3-Way Model Setup Strategy:
 ;   (A) Download verified components
 ;   (B) Scan existing local partitions (D:\AI\LMStudio-Models\local, E:\, D:\) in-place
@@ -10,20 +10,20 @@
 ; Preserves user data, model files, and settings across upgrade, repair, and uninstall.
 ; ============================================================================
 
-#define MyAppName "HAFIZ In Slang"
+#define MyAppName "HAFIZ New Generation"
 #define MyAppVersion "2.0.0"
 #define MyAppPublisher "HAFIZ Studio"
 #define MyAppExeName "HAFIZ.exe"
 #define SourcePublishDir "..\artifacts\win-x64\publish"
 
 [Setup]
-AppId={{6F3A9D54-9A14-4C8F-B1E9-3E7A2A1B8E42}
+AppId={{C84856A7-7A5B-4F5B-9A42-BD3256CC2091}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
 DefaultDirName={code:GetDefaultInstallDir}
 DisableDirPage=no
-DefaultGroupName={#MyAppName}
+DefaultGroupName=HAFIZ New Generation
 AllowNoIcons=yes
 OutputDir=..\artifacts\installer
 OutputBaseFilename=HAFIZ_Setup
@@ -92,11 +92,11 @@ function GetDefaultInstallDir(Param: String): String;
 begin
   // Prefer the user's existing D: install volume; never default to a missing drive.
   if DirExists('D:\') then
-    Result := 'D:\HAFIZ_In_Slang'
+    Result := 'D:\HAFIZ_New_Generation'
   else if DirExists('E:\') then
-    Result := 'E:\HAFIZ_In_Slang'
+    Result := 'E:\HAFIZ_New_Generation'
   else
-    Result := ExpandConstant('{autopf}\HAFIZ In Slang');
+    Result := ExpandConstant('{autopf}\HAFIZ New Generation');
 end;
 
 function GetDefaultModelStoragePath(Param: String): String;
@@ -162,8 +162,8 @@ begin
       StrategyName := 'hybrid';
     end;
 
-    ForceDirectories(ExpandConstant('{localappdata}\HAFIZ_In_Slang'));
-    BootstrapPath := ExpandConstant('{localappdata}\HAFIZ_In_Slang\installer-bootstrap.json');
+    ForceDirectories(ExpandConstant('{localappdata}\HAFIZ_New_Generation'));
+    BootstrapPath := ExpandConstant('{localappdata}\HAFIZ_New_Generation\installer-bootstrap.json');
     JsonContent :=
       '{' + #13#10 +
       '  "installRootPath": "' + JsonEscape(ExpandConstant('{app}')) + '",' + #13#10 +
