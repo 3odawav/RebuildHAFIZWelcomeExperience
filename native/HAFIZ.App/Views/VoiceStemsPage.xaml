@@ -10,10 +10,10 @@
         </Grid.RowDefinitions>
 
         <StackPanel Grid.Row="0" Spacing="4">
-            <TextBlock Style="{StaticResource HafizSectionTitleStyle}" Text="استنساخ الصوت وفصل 6-Stems — Voice Clone &amp; 6-Stems" />
-            <TextBlock
+            <TextBlock x:Name="HafizLoc1" Style="{StaticResource HafizSectionTitleStyle}" Text="استنساخ الصوت وفصل 6 تراكات" />
+            <TextBlock x:Name="HafizLoc2"
                 Foreground="{ThemeResource HafizTextSecondaryBrush}"
-                Text="عزل صوت BS-RoFormer، فصل 6 تراكات Demucs htdemucs_6s، وتحويل غنائي محلي Seed-VC (بدون MiniMax)" />
+                Text="عزل الغناء BS-RoFormer، فصل 6 تراكات Demucs، وتحويل غنائي محلي Seed-VC" />
         </StackPanel>
 
         <Grid Grid.Row="1" ColumnSpacing="16">
@@ -24,29 +24,29 @@
 
             <Border Grid.Column="0" Style="{StaticResource HafizCardStyle}">
                 <StackPanel Spacing="12">
-                    <TextBlock FontSize="15" FontWeight="SemiBold" Text="فصل التراكات — BS-RoFormer &amp; Demucs 6-Stems" />
+                    <TextBlock x:Name="HafizLoc3" FontSize="15" FontWeight="SemiBold" Text="فصل التراكات — BS-RoFormer وDemucs" />
                     <TextBox x:Name="MixInputPathBox" PlaceholderText="مسار الأغنية الأصلية (WAV / FLAC / MP3)..." />
                     <StackPanel Orientation="Horizontal" Spacing="8">
-                        <Button Click="OnRunBsRoformerClick" Style="{StaticResource AccentButtonStyle}" Content="عزل غنائي BS-RoFormer" />
-                        <Button Click="OnRunDemucs6StemsClick" Content="فصل 6 تراكات (Demucs)" />
+                        <Button x:Name="HafizLoc4" Click="OnRunBsRoformerClick" Style="{StaticResource AccentButtonStyle}" Content="عزل غنائي BS-RoFormer" />
+                        <Button x:Name="HafizLoc5" Click="OnRunDemucs6StemsClick" Content="فصل 6 تراكات (Demucs)" />
                     </StackPanel>
-                    <TextBlock
+                    <TextBlock x:Name="HafizLoc6"
                         Foreground="{ThemeResource HafizTextSecondaryBrush}"
-                        Text="Stems: Vocals, Drums, Bass, Guitar, Piano, Other (SingleHeavyModelLock GPU Guard active)"
+                        Text="التراكات: الغناء، الدرامز، الباص، الجيتار، البيانو، وأخرى. حماية GPU للمحركات المملوكة لحافظ فقط."
                         TextWrapping="Wrap" />
                 </StackPanel>
             </Border>
 
             <Border Grid.Column="1" Style="{StaticResource HafizCardStyle}">
                 <StackPanel Spacing="12">
-                    <TextBlock FontSize="15" FontWeight="SemiBold" Text="تحويل الصوت والغناء المعتمد — Authorized Seed-VC" />
-                    <TextBox x:Name="ReferenceVoicePathBox" PlaceholderText="مسار العينة الصوتية المرخصة (10-30 ثانية WAV)..." />
+                    <TextBlock x:Name="HafizLoc7" FontSize="15" FontWeight="SemiBold" Text="تحويل الصوت والغناء المعتمد — Seed-VC" />
+                    <TextBox x:Name="ReferenceVoicePathBox" PlaceholderText="مسار العينة الصوتية المرخصة (10–30 ثانية WAV)..." />
                     <CheckBox x:Name="VoiceConsentCheck" Content="أؤكد أنني أملك الإذن الكامل لاستخدام هذه العينة الصوتية" />
-                    <Button Click="OnRunSeedVcClick" Style="{StaticResource AccentButtonStyle}" Content="تحويل غنائي عبر Seed-VC (FP16 SM75)" />
+                    <Button x:Name="HafizLoc8" Click="OnRunSeedVcClick" Style="{StaticResource AccentButtonStyle}" Content="تحويل غنائي عبر Seed-VC (FP16 SM75)" />
                     <TextBlock
                         x:Name="VoiceStemsStatus"
                         Foreground="{ThemeResource HafizTextSecondaryBrush}"
-                        Text="محركات الصوت الثقيلة تعمل بالتحميل الكسول مع حماية 16GB VRAM."
+                        Text="حالة المحركات تظهر بعد الاتصال الفعلي."
                         TextWrapping="Wrap" />
                 </StackPanel>
             </Border>

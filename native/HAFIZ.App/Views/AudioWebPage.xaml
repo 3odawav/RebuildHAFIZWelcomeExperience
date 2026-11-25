@@ -10,8 +10,8 @@
         </Grid.RowDefinitions>
 
         <StackPanel Grid.Row="0" Spacing="4">
-            <TextBlock Style="{StaticResource HafizSectionTitleStyle}" Text="الصوت والويب — Audio &amp; Web" />
-            <TextBlock
+            <TextBlock x:Name="HafizLoc1" Style="{StaticResource HafizSectionTitleStyle}" Text="الصوت والويب" />
+            <TextBlock x:Name="HafizLoc2"
                 Foreground="{ThemeResource HafizTextSecondaryBrush}"
                 Text="تفريغ صوتي محلي (Cohere Transcribe / transcribe.cpp)، تحليل موسيقي، واستيراد الصوتيات" />
         </StackPanel>
@@ -24,11 +24,11 @@
 
             <Border Grid.Column="0" Style="{StaticResource HafizCardStyle}">
                 <StackPanel Spacing="12">
-                    <TextBlock FontSize="15" FontWeight="SemiBold" Text="التفريغ الصوتي المحلي — Local Transcription" />
+                    <TextBlock x:Name="HafizLoc3" FontSize="15" FontWeight="SemiBold" Text="التفريغ الصوتي المحلي" />
                     <TextBox x:Name="AudioPathBox" PlaceholderText="مسار ملف الصوت (WAV / MP3 / FLAC)..." />
                     <StackPanel Orientation="Horizontal" Spacing="8">
-                        <Button Click="OnRunTranscribeClick" Style="{StaticResource AccentButtonStyle}" Content="ابدأ التفريغ (transcribe.cpp)" />
-                        <Button Click="OnAnalyzeMusicClick" Content="تحليل الإيقاع والمقام" />
+                        <Button x:Name="HafizLoc4" Click="OnRunTranscribeClick" Style="{StaticResource AccentButtonStyle}" Content="ابدأ التفريغ" />
+                        <Button x:Name="HafizLoc5" Click="OnAnalyzeMusicClick" Content="تحليل الإيقاع والمقام" />
                     </StackPanel>
                     <TextBox
                         x:Name="TranscriptResultBox"
@@ -42,9 +42,9 @@
 
             <Border Grid.Column="1" Style="{StaticResource HafizCardStyle}">
                 <StackPanel Spacing="12">
-                    <TextBlock FontSize="15" FontWeight="SemiBold" Text="البحث المدعوم ويوتيوب — Supported Web &amp; YouTube" />
+                    <TextBlock x:Name="HafizLoc6" FontSize="15" FontWeight="SemiBold" Text="البحث المدعوم ويوتيوب" />
                     <TextBox x:Name="WebUrlBox" PlaceholderText="رابط فيديو أو مصدر بحثي مدعوم..." />
-                    <Button Click="OnQueueWebIngestClick" Content="تحليل الرابط واستخراج الصوت" />
+                    <Button x:Name="HafizLoc7" Click="OnQueueWebIngestClick" Content="تحليل الرابط واستخراج الصوت" />
                     <TextBlock
                         x:Name="AudioWebStatus"
                         Foreground="{ThemeResource HafizTextSecondaryBrush}"

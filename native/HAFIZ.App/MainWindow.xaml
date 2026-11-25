@@ -32,7 +32,7 @@
                 <Image Source="ms-appx:///Assets/Branding/HAFIZ-logo.png" Width="112" Height="30" Stretch="Uniform" />
                 <TextBlock
                     x:Name="TitleBarBrandText"
-                    Text="حافظ بالعامية — HAFIZ In Slang"
+                    Text="حافظ بالعامية"
                     FontSize="13"
                     FontWeight="SemiBold"
                     Foreground="{ThemeResource HafizTextPrimaryBrush}" />
@@ -45,12 +45,12 @@
                 VerticalAlignment="Center"
                 FontSize="12"
                 Foreground="{ThemeResource HafizTextSecondaryBrush}"
-                Text="NVIDIA CUDA Native Studio" />
+                Text="فحص كارت الشاشة…" />
 
             <!-- Quick Theme & Language Switchers in Titlebar Chrome -->
             <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                <Button Click="OnQuickLanguageToggle" Content="AR / EN" Padding="8,2" FontSize="11" />
-                <Button Click="OnCycleThemeClick" Content="Theme" Padding="8,2" FontSize="11" />
+                <Button x:Name="HafizLoc1" Click="OnQuickLanguageToggle" Content="اللغة" Padding="8,2" FontSize="11" />
+                <Button x:Name="HafizLoc2" Click="OnCycleThemeClick" Content="المظهر" Padding="8,2" FontSize="11" />
             </StackPanel>
         </Grid>
 

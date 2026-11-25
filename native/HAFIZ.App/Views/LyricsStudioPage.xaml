@@ -10,8 +10,8 @@
         </Grid.RowDefinitions>
 
         <StackPanel Grid.Row="0" Spacing="4">
-            <TextBlock Style="{StaticResource HafizSectionTitleStyle}" Text="استوديو الكلمات — Lyrics Studio" />
-            <TextBlock
+            <TextBlock x:Name="HafizLoc1" Style="{StaticResource HafizSectionTitleStyle}" Text="استوديو الكلمات" />
+            <TextBlock x:Name="HafizLoc2"
                 Foreground="{ThemeResource HafizTextSecondaryBrush}"
                 Text="تشكيل عامي مصري، كتابة أغاني، ضبط القوافي، إعادة الصياغة، الإملاء، والنطق المصري" />
         </StackPanel>
@@ -33,20 +33,20 @@
                     <StackPanel Grid.Row="0" Spacing="6">
                         <StackPanel Orientation="Horizontal" Spacing="6">
                             <Button x:Name="RecordButton" Click="OnRecordClick" Content="🎤 تسجيل" />
-                            <Button Click="OnClearRecordingClick" Content="استخدام النص المكتوب" />
-                            <Button Click="OnCancelClick" Content="إلغاء" />
+                            <Button x:Name="HafizLoc3" Click="OnClearRecordingClick" Content="استخدام النص المكتوب" />
+                            <Button x:Name="HafizLoc4" Click="OnCancelClick" Content="إلغاء" />
                         </StackPanel>
                         <ComboBox x:Name="DiacriticsMode" SelectedIndex="0" HorizontalAlignment="Stretch">
-                            <ComboBoxItem Content="تشكيل ذكي بالعامية" Tag="Smart Diacritics" />
-                            <ComboBoxItem Content="Suno Phonetic" Tag="Suno Phonetic" />
-                            <ComboBoxItem Content="نطق مصري متصل" Tag="Connected Egyptian" />
-                            <ComboBoxItem Content="تدقيق" Tag="Proofread" />
+                            <ComboBoxItem x:Name="HafizLoc5" Content="تشكيل ذكي بالعامية" Tag="Smart Diacritics" />
+                            <ComboBoxItem x:Name="HafizLoc6" Content="تشكيل للنطق في Suno" Tag="Suno Phonetic" />
+                            <ComboBoxItem x:Name="HafizLoc7" Content="نطق مصري متصل" Tag="Connected Egyptian" />
+                            <ComboBoxItem x:Name="HafizLoc8" Content="تدقيق" Tag="Proofread" />
                         </ComboBox>
                         <StackPanel Orientation="Horizontal" Spacing="8">
-                        <Button Click="OnDiacritizeClick" Style="{StaticResource AccentButtonStyle}" Content="تشكيل عامي مصري" />
-                        <Button Click="OnRhymeCheckClick" Content="فحص القافية والوزن" />
-                        <Button Click="OnRewriteClick" Content="إعادة صياغة" />
-                        <Button Click="OnSpeakLyricsClick" Content="🔊 نطق مصري" />
+                        <Button x:Name="HafizLoc9" Click="OnDiacritizeClick" Style="{StaticResource AccentButtonStyle}" Content="تشكيل عامي مصري" />
+                        <Button x:Name="HafizLoc10" Click="OnRhymeCheckClick" Content="فحص القافية والوزن" />
+                        <Button x:Name="HafizLoc11" Click="OnRewriteClick" Content="إعادة صياغة" />
+                        <Button x:Name="HafizLoc12" Click="OnSpeakLyricsClick" Content="🔊 نطق مصري" />
                         </StackPanel>
                     </StackPanel>
 
@@ -68,7 +68,7 @@
 
             <Border Grid.Column="1" Style="{StaticResource HafizCardStyle}">
                 <StackPanel Spacing="12">
-                    <TextBlock FontSize="15" FontWeight="SemiBold" Text="إخراج وتصدير — Prompt &amp; Export" />
+                    <TextBlock x:Name="HafizLoc13" FontSize="15" FontWeight="SemiBold" Text="إخراج وتصدير" />
                     <TextBox
                         x:Name="PromptOutputBox"
                         AcceptsReturn="True"
@@ -76,7 +76,7 @@
                         Height="240"
                         IsReadOnly="True"
                         PlaceholderText="المخرجات والبرومبت الموسيقي ستظهر هنا..." />
-                    <Button Click="OnExportTextClick" Content="حفظ كملف نصي (.txt)" />
+                    <Button x:Name="HafizLoc14" Click="OnExportTextClick" Content="حفظ كملف نصي (.txt)" />
                 </StackPanel>
             </Border>
         </Grid>

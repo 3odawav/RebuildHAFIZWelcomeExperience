@@ -112,6 +112,13 @@ public sealed partial class MainWindow : Window
             RootLayout.ClearValue(Panel.BackgroundProperty);
         }
 
+        HAFIZ.App.Services.NativeUiLocalization.Apply(RootLayout,"MainWindow",_viewModel.IsRightToLeft);
+        HAFIZ.App.Services.NativeUiLocalization.Apply(StartupStage,"Startup",_viewModel.IsRightToLeft);
+        HAFIZ.App.Services.NativeUiLocalization.Apply(FloatingAssistant,"Companion",_viewModel.IsRightToLeft);
+        HAFIZ.App.Services.NativeUiLocalization.Apply(LyricsView,"Lyrics",_viewModel.IsRightToLeft);
+        HAFIZ.App.Services.NativeUiLocalization.Apply(AudioView,"Audio",_viewModel.IsRightToLeft);
+        HAFIZ.App.Services.NativeUiLocalization.Apply(VoiceView,"Voice",_viewModel.IsRightToLeft);
+        HAFIZ.App.Services.NativeUiLocalization.Apply(SettingsView,"Settings",_viewModel.IsRightToLeft);
         NavLyrics.Content = _viewModel.Text("Nav.LyricsStudio");
         NavAudio.Content = _viewModel.Text("Nav.AudioWeb");
         NavVoice.Content = _viewModel.Text("Nav.VoiceStems");
