@@ -2,7 +2,7 @@
 .SYNOPSIS
   Reproducible Windows 11 x64 native build and installer packaging script for HAFIZ In Slang.
 .DESCRIPTION
-  1. Verifies .NET 8 SDK, Windows App SDK target, Python 3.11, and optional Inno Setup 6 (ISCC.exe).
+  1. Verifies .NET 10 LTS SDK, Windows App SDK target, Python 3.11, and optional Inno Setup 6 (ISCC.exe).
   2. Runs native xUnit tests (HAFIZ.Tests) and Python backend worker tests.
   3. Publishes unpackaged self-contained WinUI 3 x64 HAFIZ.exe into artifacts/win-x64/publish.
   4. Compiles installer/HAFIZ_Setup.iss into artifacts/installer/HAFIZ_Setup.exe.
@@ -28,7 +28,7 @@ $ChecksumFile = Join-Path $RepoRoot "artifacts\SHA256SUMS.txt"
 Write-Host "==> Verifying .NET SDK..." -ForegroundColor Cyan
 Set-Location $RepoRoot
 $sdkVersion = dotnet --version
-if ($sdkVersion -notmatch '^8\.') { throw "Expected .NET 8 SDK, found $sdkVersion" }
+if ($sdkVersion -notmatch '^10\.') { throw "Expected .NET 10 LTS SDK, found $sdkVersion" }
 dotnet --info | Select-Object -First 8
 
 Write-Host "==> Restoring native WinUI 3 solution..." -ForegroundColor Cyan
@@ -42,7 +42,7 @@ python -m unittest discover -s (Join-Path $RepoRoot "backend\workers") -v
 
 Write-Host "==> Publishing self-contained unpackaged WinUI 3 HAFIZ.exe (win-x64)..." -ForegroundColor Cyan
 if (Test-Path $PublishDir) { Remove-Item -Recurse -Force $PublishDir }
-# Windows App SDK 1.6 requires the Visual Studio PRI build tasks.
+# Windows App SDK 2.7 requires the Visual Studio PRI build tasks.
 $VsWhere = Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio\Installer\vswhere.exe"
 if (-not (Test-Path $VsWhere)) { throw "Visual Studio Installer (vswhere.exe) is required for WinUI 3 publishing." }
 $VsInstallations = @(& $VsWhere -products '*' -requires Microsoft.Component.MSBuild -property installationPath)
@@ -69,7 +69,7 @@ if ($LASTEXITCODE -ne 0) { throw "Native WinUI publish failed" }
 
 # Unpackaged WinUI publish may omit the application's generated PRI and XBF resources.
 # Preserve the exact resource paths produced by this build before creating the installer.
-$BuildOutputDir = Join-Path (Split-Path $AppCsproj -Parent) "bin\x64\$Configuration\net8.0-windows10.0.22621.0\win-x64"
+$BuildOutputDir = Join-Path (Split-Path $AppCsproj -Parent) "bin\x64\$Configuration\net10.0-windows10.0.22621.0\win-x64"
 $AppPri = Join-Path $BuildOutputDir "HAFIZ.pri"
 if (-not (Test-Path -LiteralPath $AppPri -PathType Leaf)) {
     throw "WinUI application resource index was not generated: $AppPri"
@@ -86,6 +86,7 @@ foreach ($Resource in $XamlResources) {
 }
 $RequiredResources = @(
     "HAFIZ.pri", "App.xbf", "MainWindow.xbf",
+    "Assets\Branding\HAFIZ.ico", "Assets\Branding\HAFIZ-logo.png",
     "Themes\ThemeResources.xbf",
     "Controls\FloatingHafizOverlay.xbf", "Controls\LivingHafizAvatarControl.xbf",
     "Views\StartupStagePage.xbf", "Views\LyricsStudioPage.xbf",

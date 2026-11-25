@@ -47,14 +47,14 @@
                     <Button
                         x:Name="DockSideButton"
                         Click="OnToggleDockClick"
-                        ToolTipService.ToolTip="Move Left / Right"
+                        ToolTipService.ToolTip="تحريك يمين أو يسار"
                         Padding="6,4">
                         <FontIcon Glyph="&#xE8AB;" FontSize="13" />
                     </Button>
                     <Button
                         x:Name="CollapseButton"
                         Click="OnToggleExpandedClick"
-                        ToolTipService.ToolTip="Expand / Collapse"
+                        ToolTipService.ToolTip="توسيع أو تصغير"
                         Padding="6,4">
                         <FontIcon Glyph="&#xE70D;" FontSize="13" />
                     </Button>
@@ -73,7 +73,7 @@
                         Grid.Column="0"
                         PlaceholderText="قول لحافظ عايز إيه..."
                         KeyDown="OnCommandInputKeyDown" />
-                    <Button
+                    <Button x:Name="HafizLoc1"
                         Grid.Column="1"
                         Click="OnSendCommandClick"
                         Style="{StaticResource AccentButtonStyle}"
@@ -81,8 +81,8 @@
                 </Grid>
 
                 <StackPanel Orientation="Horizontal" Spacing="6">
-                    <Button Click="OnListenToggleClick" Content="🎤 اتكلم" />
-                    <Button Click="OnReturnHomeClick" Content="الواجهة الرئيسية" />
+                    <Button x:Name="CompanionMicButton" Click="OnListenToggleClick" Content="🎤 اتكلم" />
+                    <Button x:Name="HafizLoc2" Click="OnReturnHomeClick" Content="تكبير حافظ" />
                 </StackPanel>
             </StackPanel>
         </StackPanel>

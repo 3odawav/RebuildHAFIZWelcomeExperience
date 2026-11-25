@@ -28,7 +28,7 @@ public partial class App : Application
     {
         var appDataRoot = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "HAFIZ_In_Slang");
+            "HAFIZ_New_Generation");
         Directory.CreateDirectory(appDataRoot);
 
         var settingsStore = new SettingsStore(appDataRoot);

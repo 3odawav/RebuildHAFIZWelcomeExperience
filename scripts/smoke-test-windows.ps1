@@ -15,6 +15,8 @@ function Resolve-RepoPath([string]$Path) {
 function Assert-HafizPayload([string]$Directory, [string]$Label) {
     $required = @(
         "HAFIZ.exe",
+        "Assets\Branding\HAFIZ.ico",
+        "Assets\Branding\HAFIZ-logo.png",
         "HAFIZ.pri",
         "App.xbf",
         "MainWindow.xbf",
@@ -151,7 +153,7 @@ try {
 
     Assert-HafizPayload -Directory $installRoot -Label "Installed Inno Setup payload"
 
-    $bootstrapPath = Join-Path $env:LOCALAPPDATA "HAFIZ_In_Slang\installer-bootstrap.json"
+    $bootstrapPath = Join-Path $env:LOCALAPPDATA "HAFIZ_New_Generation\installer-bootstrap.json"
     if (-not (Test-Path -LiteralPath $bootstrapPath -PathType Leaf)) {
         throw "Installer did not create its expected bootstrap settings file: $bootstrapPath"
     }

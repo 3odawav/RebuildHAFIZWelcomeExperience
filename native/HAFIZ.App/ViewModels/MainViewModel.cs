@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using HAFIZ.Animation;
+using HAFIZ.App.Services;
 using HAFIZ.Backend.Orchestration;
 using HAFIZ.Core.Localization;
 using HAFIZ.Core.Models;
@@ -56,6 +57,12 @@ public sealed partial class MainViewModel : ObservableObject
         ActiveWorkspace = WorkspaceSection.LyricsStudio;
         AssistantState = AvatarActivityState.Idle;
         CurrentExpression = ExpressionId.Neutral;
+        AssistantTranscript = string.Empty;
+        StatusBanner = string.Empty;
+        IsScanningModels = false;
+        ScanFilesCount = 0;
+        GpuTelemetry = GpuTelemetrySnapshot.Unavailable("Not probed yet.");
+        LmStudioConnected = false;
 
         foreach (var root in Settings.ScanDirectories)
         {
@@ -63,25 +70,183 @@ public sealed partial class MainViewModel : ObservableObject
         }
     }
 
+    private readonly LocalAiClient _localAi = new();
+    private readonly NativeRecording _recording = new();
+    private readonly NativeSpeechPlayback _playback = new();
+    private CancellationTokenSource? _operation;
+    private bool _recordingTransition;
+    private bool _lyricsOwner;
+    public bool IsRecording => _recording.IsRecording;
+    public bool RecordingForLyrics => IsRecording && _lyricsOwner;
+    public bool IsVoiceBusy => _operation is not null || _recordingTransition;
+    public string? LastLyricsRecordingPath { get; private set; }
+    public event Action<float[],int>? SpeechSamples;
+    public string Localized(string ar, string en) => IsRightToLeft ? ar : en;
+    private string RecordingDirectory => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"HAFIZ_New_Generation","Recordings");
+
+    private void SetActivity(AvatarActivityState state)
+    {
+        CurrentExpression = ExpressionId.Neutral;
+        AssistantState = state;
+    }
+    private void ReportError(Exception error)
+    {
+        SetActivity(AvatarActivityState.Error);
+        StatusBanner = Localized("تعذر تنفيذ الطلب: ","Operation failed: ") + error.Message;
+    }
+
+    private (string Url,string Model) LlmEndpoint =>
+        LlmProvider == LocalInferenceProvider.LmStudioExternal
+            ? (LmStudioBaseUrl,SelectedLmStudioModelId)
+            : (Settings.LocalLlmBaseUrl,Settings.LocalLlmModelId);
+
+    private Task<string> CompleteAsync(string system,string text,CancellationToken ct)
+    {
+        var (url,model)=LlmEndpoint;
+        return _localAi.ChatAsync(url,model,system,text,ct);
+    }
+    private Task<string> TranscribeAsync(string path,CancellationToken ct) =>
+        _localAi.TranscribeAsync(Settings.LocalAsrBaseUrl,Settings.LocalAsrModelId,path,ct);
+
+    private async Task SpeakInternalAsync(string text,CancellationToken ct)
+    {
+        SetActivity(AvatarActivityState.Thinking);
+        var wav=await _localAi.SpeechAsync(Settings.LocalTtsBaseUrl,Settings.LocalTtsModelId,Settings.LocalTtsVoice,text,ct);
+        Directory.CreateDirectory(RecordingDirectory);
+        var file=Path.Combine(RecordingDirectory,"speech-"+Guid.NewGuid().ToString("N")+".wav");
+        await File.WriteAllBytesAsync(file,wav,ct);
+        await _playback.PlayAsync(file,wav,SetActivity,(data,rate)=>SpeechSamples?.Invoke(data,rate),ct);
+    }
+
+    public async Task ToggleRecordingAsync(bool lyrics)
+    {
+        if(_recordingTransition) return;
+        if(_operation is not null)
+        {
+            _operation.Cancel();
+            return; // Never overlap playback/inference and a new capture. Press again after cancellation.
+        }
+        if(IsRecording && _lyricsOwner!=lyrics)
+        {
+            StatusBanner=Localized("أوقف التسجيل من المساحة اللي بدأته منها.","Stop recording in the workspace where it started.");
+            return;
+        }
+        _recordingTransition=true;
+        string? recorded=null;
+        try
+        {
+            if(!IsRecording)
+            {
+                _lyricsOwner=lyrics;
+                await _recording.StartAsync(RecordingDirectory);
+                SetActivity(AvatarActivityState.Listening);
+                StatusBanner=Localized("الميكروفون بيسجل فعلاً.","Microphone recording is active.");
+            }
+            else
+            {
+                recorded=await _recording.StopAsync();
+                if(lyrics) LastLyricsRecordingPath=recorded;
+                SetActivity(AvatarActivityState.Idle);
+                StatusBanner=Localized("تم حفظ التسجيل: ","Recording saved: ")+recorded;
+            }
+        }
+        catch(Exception ex)
+        {
+            if(lyrics && _recording.PathOnDisk is string preserved && File.Exists(preserved))
+                LastLyricsRecordingPath=preserved;
+            ReportError(ex);
+        }
+        finally
+        {
+            _recordingTransition=false;
+            OnPropertyChanged(nameof(IsRecording));
+            OnPropertyChanged(nameof(RecordingForLyrics));
+        }
+        if(recorded is not null && !lyrics)
+            await RunOperationAsync(async ct => {
+                var text=await TranscribeAsync(recorded,ct);
+                await RouteCommandAsync(text,true,ct);
+            });
+    }
+
+    public void CancelVoiceOperation() => _operation?.Cancel();
+    public void CloseVoiceSession()
+    {
+        _operation?.Cancel();
+        _recording.Dispose();
+    }
+    public async Task<string?> TranscribeFileAsync(string path)
+    {
+        string? text=null;
+        await RunOperationAsync(async ct=>{
+            text=await TranscribeAsync(path,ct);
+            StatusBanner=Localized("تم التفريغ من المحرك المحلي.","Transcription received from local ASR.");
+        });
+        return text;
+    }
+    public void ClearLyricsRecording() => LastLyricsRecordingPath=null;
+
+    private async Task RunOperationAsync(Func<CancellationToken,Task> action)
+    {
+        if(IsRecording || IsVoiceBusy)
+        {
+            StatusBanner=Localized("في تسجيل أو عملية شغالة بالفعل.","A recording or operation is already active.");
+            return;
+        }
+        using var cts=new CancellationTokenSource();
+        _operation=cts;
+        OnPropertyChanged(nameof(IsVoiceBusy));
+        try { SetActivity(AvatarActivityState.Thinking); await action(cts.Token); SetActivity(AvatarActivityState.Idle); }
+        catch(OperationCanceledException) when(cts.IsCancellationRequested)
+        { SetActivity(AvatarActivityState.Idle); StatusBanner=Localized("تم إلغاء العملية.","Operation cancelled."); }
+        catch(Exception ex) { ReportError(ex); }
+        finally { _operation=null; OnPropertyChanged(nameof(IsVoiceBusy)); }
+    }
+
+    public async Task<string?> RunLyricsAsync(string input,string mode)
+    {
+        string? result=null;
+        await RunOperationAsync(async ct => {
+            var source=LastLyricsRecordingPath is string recording
+                ? await TranscribeAsync(recording,ct) : input;
+            if(string.IsNullOrWhiteSpace(source)) throw new InvalidOperationException(Localized("سجل صوت أو اكتب نص الأول.","Record audio or enter text first."));
+            AssistantTranscript=source;
+            var instruction=mode switch {
+                "Smart Diacritics"=>"Add natural Egyptian Arabic diacritics only; preserve every word and line.",
+                "Suno Phonetic"=>"Apply Egyptian pronunciation-oriented Arabic diacritics suitable for sung lyrics; preserve all words.",
+                "Connected Egyptian"=>"Apply natural connected Egyptian colloquial pronunciation and diacritics; retain words and lines.",
+                "Proofread"=>"Proofread spelling and diacritics in Egyptian Arabic without changing the intended meaning.",
+                "Rhyme"=>"Analyze Egyptian rhyme and meter in Arabic, without rewriting.",
+                "Rewrite"=>"Rewrite in natural Egyptian colloquial Arabic, preserving intended meaning.",
+                _=>throw new ArgumentException("Unknown lyrics operation.")
+            };
+            result=await CompleteAsync(instruction+" Return only the requested result, no commentary.",source,ct);
+            StatusBanner=Localized("تم استلام نتيجة فعلية من المحرك المحلي.","Received actual local inference output.");
+        });
+        return result;
+    }
+
+    public Task SpeakTextAsync(string text) => RunOperationAsync(ct=>SpeakInternalAsync(text,ct));
+
     public AppSettings Settings { get; private set; }
     public LocalizationService Localization => _localization;
 
-    [ObservableProperty] private bool showStartupStage = true;
-    [ObservableProperty] private WorkspaceSection activeWorkspace = WorkspaceSection.LyricsStudio;
-    [ObservableProperty] private ThemePreset selectedTheme = ThemePreset.NightGraphiteGold;
-    [ObservableProperty] private UiLanguage selectedLanguage = UiLanguage.ArabicEgypt;
-    [ObservableProperty] private AssistantDockSide floatingDockSide = AssistantDockSide.Right;
-    [ObservableProperty] private AvatarActivityState assistantState = AvatarActivityState.Idle;
-    [ObservableProperty] private ExpressionId currentExpression = ExpressionId.Neutral;
-    [ObservableProperty] private string assistantTranscript = string.Empty;
-    [ObservableProperty] private string statusBanner = string.Empty;
-    [ObservableProperty] private bool isScanningModels;
-    [ObservableProperty] private int scanFilesCount;
-    [ObservableProperty] private GpuTelemetrySnapshot gpuTelemetry = GpuTelemetrySnapshot.Unavailable("Not probed yet.");
-    [ObservableProperty] private LocalInferenceProvider llmProvider = LocalInferenceProvider.EmbeddedLlamaCpp;
-    [ObservableProperty] private string lmStudioBaseUrl = "http://127.0.0.1:1234";
-    [ObservableProperty] private string selectedLmStudioModelId = string.Empty;
-    [ObservableProperty] private bool lmStudioConnected;
+    [ObservableProperty] public partial bool ShowStartupStage { get; set; }
+    [ObservableProperty] public partial WorkspaceSection ActiveWorkspace { get; set; }
+    [ObservableProperty] public partial ThemePreset SelectedTheme { get; set; }
+    [ObservableProperty] public partial UiLanguage SelectedLanguage { get; set; }
+    [ObservableProperty] public partial AssistantDockSide FloatingDockSide { get; set; }
+    [ObservableProperty] public partial AvatarActivityState AssistantState { get; set; }
+    [ObservableProperty] public partial ExpressionId CurrentExpression { get; set; }
+    [ObservableProperty] public partial string AssistantTranscript { get; set; }
+    [ObservableProperty] public partial string StatusBanner { get; set; }
+    [ObservableProperty] public partial bool IsScanningModels { get; set; }
+    [ObservableProperty] public partial int ScanFilesCount { get; set; }
+    [ObservableProperty] public partial GpuTelemetrySnapshot GpuTelemetry { get; set; }
+    [ObservableProperty] public partial LocalInferenceProvider LlmProvider { get; set; }
+    [ObservableProperty] public partial string LmStudioBaseUrl { get; set; }
+    [ObservableProperty] public partial string SelectedLmStudioModelId { get; set; }
+    [ObservableProperty] public partial bool LmStudioConnected { get; set; }
 
     public ObservableCollection<string> ScanRoots { get; } = new();
     public ObservableCollection<DiscoveredModelEntry> DiscoveredModels { get; } = new();
@@ -96,14 +261,14 @@ public sealed partial class MainViewModel : ObservableObject
     {
         ActiveWorkspace = section;
         ShowStartupStage = false;
-        AssistantState = AvatarActivityState.Idle;
+        if(!IsVoiceBusy && !IsRecording) AssistantState = AvatarActivityState.Idle;
     }
 
     [RelayCommand]
     public void ReturnToStartupStage()
     {
         ShowStartupStage = true;
-        AssistantState = AvatarActivityState.Idle;
+        if(!IsVoiceBusy && !IsRecording) AssistantState = AvatarActivityState.Idle;
     }
 
     [RelayCommand]
@@ -149,35 +314,38 @@ public sealed partial class MainViewModel : ObservableObject
     [RelayCommand]
     public void HandleVoiceOrTextCommand(string input)
     {
-        if (string.IsNullOrWhiteSpace(input)) return;
-        var intent = _intentRouter.Route(input);
-        AssistantTranscript = input;
+        if(!string.IsNullOrWhiteSpace(input))
+            _ = RunOperationAsync(ct=>RouteCommandAsync(input,false,ct));
+    }
 
-        switch (intent.Action)
+    private async Task RouteCommandAsync(string input,bool spoken,CancellationToken ct)
+    {
+        var intent=_intentRouter.Route(input);
+        AssistantTranscript=input;
+        string reply=IsRightToLeft?intent.ResponseAr:intent.ResponseEn;
+        switch(intent.Action)
         {
             case AssistantActionKind.OpenWorkspace when intent.TargetWorkspace.HasValue:
                 EnterWorkspace(intent.TargetWorkspace.Value);
-                StatusBanner = intent.ResponseAr;
                 break;
             case AssistantActionKind.SwitchTheme when intent.TargetTheme.HasValue:
-                SetTheme(intent.TargetTheme.Value);
-                StatusBanner = intent.ResponseAr;
-                break;
+                SetTheme(intent.TargetTheme.Value); break;
             case AssistantActionKind.SwitchLanguage when intent.TargetLanguage.HasValue:
-                SetLanguage(intent.TargetLanguage.Value);
-                StatusBanner = intent.ResponseAr;
-                break;
+                SetLanguage(intent.TargetLanguage.Value); break;
             case AssistantActionKind.PurgeHafizVram:
-                _ = PurgeHafizVramCommand.ExecuteAsync(null);
-                break;
+                await PurgeHafizVramAsync(); reply=StatusBanner; break;
             case AssistantActionKind.ScanLocalModels:
-                _ = ScanLocalModelsCommand.ExecuteAsync(null);
-                break;
+                EnterWorkspace(WorkspaceSection.SettingsCenter);
+                await ScanLocalModelsAsync(); reply=StatusBanner; break;
             default:
-                AssistantState = AvatarActivityState.Thinking;
-                StatusBanner = intent.ResponseAr;
+                reply=await CompleteAsync("You are HAFIZ, a helpful Egyptian Arabic assistant. Respond in natural Egyptian colloquial Arabic, unless asked for English. Be concise.",input,ct);
                 break;
         }
+        StatusBanner=reply;
+        if(spoken && !string.IsNullOrWhiteSpace(Settings.LocalTtsBaseUrl))
+            await SpeakInternalAsync(reply,ct);
+        else if(spoken)
+            StatusBanner=reply+"\n"+Localized("الصوت غير مضبوط: حدد محرك TTS المحلي في الإعدادات.","Speech is not configured: select the local TTS endpoint in Settings.");
     }
 
     [RelayCommand]

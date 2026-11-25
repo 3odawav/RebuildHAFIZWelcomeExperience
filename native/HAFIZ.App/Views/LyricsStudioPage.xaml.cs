@@ -15,26 +15,42 @@ public sealed partial class LyricsStudioPage : UserControl
 
     public void Bind(MainViewModel viewModel) => _vm = viewModel;
 
-    private void OnDiacritizeClick(object sender, RoutedEventArgs e)
+    private async void OnRecordClick(object sender,RoutedEventArgs e)
     {
-        LyricsStatusText.Text = "Diacritization request queued to local Egyptian LLM / Tashkeel worker.";
+        if(_vm is null) return;
+        await _vm.ToggleRecordingAsync(true);
+        RecordButton.Content=_vm.RecordingForLyrics?_vm.Localized("⏹ إيقاف التسجيل","Stop recording"):_vm.Localized("🎤 تسجيل","Record");
+        RecordButton.Background=_vm.RecordingForLyrics?new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255,190,35,40)):null;
+        LyricsStatusText.Text=_vm.StatusBanner;
     }
-
-    private void OnRhymeCheckClick(object sender, RoutedEventArgs e)
+    private void OnClearRecordingClick(object sender,RoutedEventArgs e)
     {
-        var lines = (LyricsEditor.Text ?? string.Empty)
-            .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
-        PromptOutputBox.Text = $"Line count: {lines.Length}\nRhyme & cadence analysis routed to active LLM provider ({_vm?.LlmProvider}).";
+        _vm?.ClearLyricsRecording();
+        LyricsStatusText.Text=_vm?.Localized("النص المكتوب هو المصدر الآن. التسجيل محفوظ.","Using typed text. Recording remains on disk.");
     }
+    private void OnCancelClick(object sender,RoutedEventArgs e)=>_vm?.CancelVoiceOperation();
 
-    private void OnRewriteClick(object sender, RoutedEventArgs e)
+    private async Task RunModeAsync(string mode)
     {
-        LyricsStatusText.Text = "Egyptian rewrite routed through SmartInferenceOrchestrator.";
+        if(_vm is null) return;
+        var result=await _vm.RunLyricsAsync(LyricsEditor.Text??"",mode);
+        if(result is not null)
+        {
+            if(_vm.LastLyricsRecordingPath is not null) LyricsEditor.Text=_vm.AssistantTranscript;
+            PromptOutputBox.Text=result;
+        }
+        LyricsStatusText.Text=_vm.StatusBanner;
     }
-
-    private void OnSpeakLyricsClick(object sender, RoutedEventArgs e)
+    private async void OnDiacritizeClick(object sender,RoutedEventArgs e)
+        =>await RunModeAsync((DiacriticsMode.SelectedItem as ComboBoxItem)?.Tag as string??"Smart Diacritics");
+    private async void OnRhymeCheckClick(object sender,RoutedEventArgs e)=>await RunModeAsync("Rhyme");
+    private async void OnRewriteClick(object sender,RoutedEventArgs e)=>await RunModeAsync("Rewrite");
+    private async void OnSpeakLyricsClick(object sender,RoutedEventArgs e)
     {
-        LyricsStatusText.Text = "Egyptian TTS queued to isolated voicetut-egyptian-tashkeel worker.";
+        if(_vm is null) return;
+        var text=string.IsNullOrWhiteSpace(PromptOutputBox.Text)?LyricsEditor.Text:PromptOutputBox.Text;
+        if(!string.IsNullOrWhiteSpace(text)) await _vm.SpeakTextAsync(text);
+        LyricsStatusText.Text=_vm.StatusBanner;
     }
 
     private void OnExportTextClick(object sender, RoutedEventArgs e)

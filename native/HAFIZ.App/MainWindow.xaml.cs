@@ -22,6 +22,8 @@ public sealed partial class MainWindow : Window
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
         ConfigureInitialWindowSize();
+        var iconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "Branding", "HAFIZ.ico");
+        if (File.Exists(iconPath)) AppWindow.SetIcon(iconPath);
 
         StartupStage.Bind(_viewModel);
         LyricsView.Bind(_viewModel);
@@ -31,8 +33,11 @@ public sealed partial class MainWindow : Window
         FloatingAssistant.ViewModel = _viewModel;
 
         _viewModel.PropertyChanged += OnViewModelPropertyChanged;
+        _viewModel.SpeechSamples += (pcm,rate) => { StartupStage.PushAudioSamples(pcm,rate); FloatingAssistant.PushAudioSamples(pcm,rate); };
+        Closed += (_,_) => _viewModel.CloseVoiceSession();
         ApplyThemeAndDirection();
         SyncWorkspaceVisibility();
+        FloatingAssistant.HorizontalAlignment = _viewModel.FloatingDockSide == AssistantDockSide.Left ? HorizontalAlignment.Left : HorizontalAlignment.Right;
 
         _ = _viewModel.RefreshHardwareTelemetryAsync();
     }
@@ -64,12 +69,17 @@ public sealed partial class MainWindow : Window
                     : HorizontalAlignment.Right;
             }
 
-            if (e.PropertyName is nameof(MainViewModel.AssistantState) or nameof(MainViewModel.CurrentExpression) or nameof(MainViewModel.StatusBanner))
+            if (e.PropertyName is nameof(MainViewModel.AssistantState) or nameof(MainViewModel.CurrentExpression) or nameof(MainViewModel.StatusBanner) or nameof(MainViewModel.IsRecording))
             {
-                var statusLabel = string.IsNullOrWhiteSpace(_viewModel.StatusBanner)
-                    ? _viewModel.Text("Status.Ready")
-                    : _viewModel.StatusBanner;
+                var statusLabel = _viewModel.AssistantState switch
+                {
+                    AvatarActivityState.Listening => _viewModel.Text("Status.Listening"),
+                    AvatarActivityState.Speaking => _viewModel.Text("Status.Speaking"),
+                    AvatarActivityState.Thinking => _viewModel.Text("Status.Thinking"),
+                    _ => string.IsNullOrWhiteSpace(_viewModel.StatusBanner) ? _viewModel.Text("Status.Ready") : _viewModel.StatusBanner
+                };
                 FloatingAssistant.SyncVisualState(_viewModel.AssistantState, _viewModel.CurrentExpression, statusLabel);
+                StartupStage.SyncVisualState(_viewModel.AssistantState, _viewModel.CurrentExpression, statusLabel);
             }
 
             if (e.PropertyName == nameof(MainViewModel.GpuTelemetry))
@@ -102,6 +112,13 @@ public sealed partial class MainWindow : Window
             RootLayout.ClearValue(Panel.BackgroundProperty);
         }
 
+        HAFIZ.App.Services.NativeUiLocalization.Apply(RootLayout,"MainWindow",_viewModel.IsRightToLeft);
+        HAFIZ.App.Services.NativeUiLocalization.Apply(StartupStage,"Startup",_viewModel.IsRightToLeft);
+        HAFIZ.App.Services.NativeUiLocalization.Apply(FloatingAssistant,"Companion",_viewModel.IsRightToLeft);
+        HAFIZ.App.Services.NativeUiLocalization.Apply(LyricsView,"Lyrics",_viewModel.IsRightToLeft);
+        HAFIZ.App.Services.NativeUiLocalization.Apply(AudioView,"Audio",_viewModel.IsRightToLeft);
+        HAFIZ.App.Services.NativeUiLocalization.Apply(VoiceView,"Voice",_viewModel.IsRightToLeft);
+        HAFIZ.App.Services.NativeUiLocalization.Apply(SettingsView,"Settings",_viewModel.IsRightToLeft);
         NavLyrics.Content = _viewModel.Text("Nav.LyricsStudio");
         NavAudio.Content = _viewModel.Text("Nav.AudioWeb");
         NavVoice.Content = _viewModel.Text("Nav.VoiceStems");
@@ -114,6 +131,7 @@ public sealed partial class MainWindow : Window
         StartupStage.Visibility = showStartup ? Visibility.Visible : Visibility.Collapsed;
         WorkspaceNav.Visibility = showStartup ? Visibility.Collapsed : Visibility.Visible;
         FloatingAssistant.Visibility = showStartup ? Visibility.Collapsed : Visibility.Visible;
+        StartupStage.SetSceneRunning(showStartup && !_viewModel.Settings.ReduceMotion);
 
         LyricsView.Visibility = _viewModel.ActiveWorkspace == WorkspaceSection.LyricsStudio ? Visibility.Visible : Visibility.Collapsed;
         AudioView.Visibility = _viewModel.ActiveWorkspace == WorkspaceSection.AudioWeb ? Visibility.Visible : Visibility.Collapsed;
