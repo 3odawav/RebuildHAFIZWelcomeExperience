@@ -10,7 +10,13 @@ namespace HAFIZ.App.Views;
 public sealed partial class StartupStagePage : UserControl
 {
     private MainViewModel? _vm;
-    private bool _listening;
+    public void SyncVisualState(AvatarActivityState state, ExpressionId expression, string status)
+    {
+        HeroAvatar.SetState(state, expression == ExpressionId.Neutral ? null : expression);
+        GreetingSubtitle.Text = status;
+        MicTriggerButton.Content = _vm?.IsRecording == true ? _vm.Localized("⏹ إيقاف التسجيل", "Stop recording") : _vm?.Localized("🎤 اتكلم مع حافظ", "Speak to HAFIZ");
+    }
+    public void PushAudioSamples(float[] pcm,int rate) => HeroAvatar.PushAudioSamples(pcm,rate);
 
     public StartupStagePage()
     {
@@ -47,14 +53,9 @@ public sealed partial class StartupStagePage : UserControl
         _vm?.TriggerMood(ExpressionId.Neutral);
     }
 
-    private void OnMicToggleClick(object sender, RoutedEventArgs e)
+    private async void OnMicToggleClick(object sender, RoutedEventArgs e)
     {
-        _listening = !_listening;
-        HeroAvatar.SetState(_listening ? AvatarActivityState.Listening : AvatarActivityState.Idle);
-        if (_vm is not null)
-        {
-            _vm.AssistantState = _listening ? AvatarActivityState.Listening : AvatarActivityState.Idle;
-        }
+        if (_vm is not null) await _vm.ToggleRecordingAsync(false);
     }
 
     private void OnSubmitStartupCommand(object sender, RoutedEventArgs e) => SubmitCommand();
@@ -72,7 +73,6 @@ public sealed partial class StartupStagePage : UserControl
     {
         var input = StartupCommandBox.Text?.Trim();
         if (string.IsNullOrWhiteSpace(input)) return;
-        HeroAvatar.SetState(AvatarActivityState.Thinking);
         _vm?.HandleVoiceOrTextCommand(input);
         StartupCommandBox.Text = string.Empty;
     }

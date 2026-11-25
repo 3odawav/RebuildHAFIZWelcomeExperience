@@ -128,6 +128,7 @@ public sealed class AvatarMotionController
             AvatarActivityState.Listening => ExpressionId.SoftSmile,
             AvatarActivityState.Laughing => ((int)(elapsedSeconds * 2.4) % 2 == 0) ? ExpressionId.Laughing : ExpressionId.BigSmile,
             AvatarActivityState.Serious => ExpressionId.Serious,
+            AvatarActivityState.Error => ExpressionId.Sad,
             AvatarActivityState.Surprised => ExpressionId.Surprised,
             _ => ((int)(elapsedSeconds / 6.0) % 5 == 4) ? ExpressionId.SoftSmile : ExpressionId.Neutral,
         };

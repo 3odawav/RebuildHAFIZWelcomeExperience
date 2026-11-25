@@ -34,6 +34,7 @@ public enum AvatarActivityState
     Laughing,
     Serious,
     Surprised,
+    Error,
 }
 
 public enum ThemePreset
@@ -162,6 +163,13 @@ public sealed record AppSettings
     public LocalInferenceProvider InferenceProvider { get; set; } = LocalInferenceProvider.EmbeddedLlamaCpp;
     public string LmStudioBaseUrl { get; set; } = "http://127.0.0.1:1234";
     public string? LmStudioSelectedModelId { get; set; }
+    public string LocalLlmBaseUrl { get; set; } = "http://127.0.0.1:8080";
+    public string LocalLlmModelId { get; set; } = "";
+    public string LocalAsrBaseUrl { get; set; } = "";
+    public string LocalAsrModelId { get; set; } = "";
+    public string LocalTtsBaseUrl { get; set; } = "";
+    public string LocalTtsModelId { get; set; } = "";
+    public string LocalTtsVoice { get; set; } = "";
     public string AppInstallDirectory { get; set; } = @"E:\HAFIZ_In_Slang";
     public string ModelDownloadDirectory { get; set; } = @"E:\HAFIZ_Models";
     public ModelSetupStrategy SetupStrategy { get; set; } = ModelSetupStrategy.UseExistingInPlace;

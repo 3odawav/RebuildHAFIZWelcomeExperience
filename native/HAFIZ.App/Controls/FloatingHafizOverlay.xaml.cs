@@ -11,7 +11,7 @@ public sealed partial class FloatingHafizOverlay : UserControl
 {
     public MainViewModel? ViewModel { get; set; }
     private bool _isExpanded;
-    private bool _isListening;
+    public void PushAudioSamples(float[] pcm,int rate) => MiniAvatar.PushAudioSamples(pcm,rate);
 
     public FloatingHafizOverlay()
     {
@@ -20,7 +20,7 @@ public sealed partial class FloatingHafizOverlay : UserControl
 
     public void SyncVisualState(AvatarActivityState state, ExpressionId expression, string statusLabel)
     {
-        MiniAvatar.SetState(state, expression);
+        MiniAvatar.SetState(state, expression == ExpressionId.Neutral ? null : expression);
         AssistantStatusText.Text = statusLabel;
     }
 
@@ -35,18 +35,9 @@ public sealed partial class FloatingHafizOverlay : UserControl
         CommandTray.Visibility = _isExpanded ? Visibility.Visible : Visibility.Collapsed;
     }
 
-    private void OnListenToggleClick(object sender, RoutedEventArgs e)
+    private async void OnListenToggleClick(object sender, RoutedEventArgs e)
     {
-        _isListening = !_isListening;
-        var nextState = _isListening ? AvatarActivityState.Listening : AvatarActivityState.Idle;
-        MiniAvatar.SetState(nextState);
-        if (ViewModel is not null)
-        {
-            ViewModel.AssistantState = nextState;
-            AssistantStatusText.Text = _isListening
-                ? ViewModel.Text("Status.Listening")
-                : ViewModel.Text("Status.Ready");
-        }
+        if (ViewModel is not null) await ViewModel.ToggleRecordingAsync(false);
     }
 
     private void OnReturnHomeClick(object sender, RoutedEventArgs e)

@@ -21,7 +21,33 @@ public sealed partial class SettingsCenterPage : UserControl
         ProviderHafizRadio.IsChecked = _vm.LlmProvider == LocalInferenceProvider.EmbeddedLlamaCpp;
         ProviderLmStudioRadio.IsChecked = _vm.LlmProvider == LocalInferenceProvider.LmStudioExternal;
         StoragePathSummary.Text = $"Install Root: {_vm.Settings.AppInstallDirectory} • Model Storage: {_vm.Settings.ModelDownloadDirectory} • Idle Unload: {_vm.Settings.IdleUnloadTimeoutSeconds}s";
+        LocalLlmUrl.Text=_vm.Settings.LocalLlmBaseUrl;
+        LocalLlmModel.Text=_vm.Settings.LocalLlmModelId;
+        LocalAsrUrl.Text=_vm.Settings.LocalAsrBaseUrl;
+        LocalAsrModel.Text=_vm.Settings.LocalAsrModelId;
+        LocalTtsUrl.Text=_vm.Settings.LocalTtsBaseUrl;
+        LocalTtsModel.Text=_vm.Settings.LocalTtsModelId;
+        LocalTtsVoice.Text=_vm.Settings.LocalTtsVoice;
         UpdateScanRootsLabel();
+    }
+
+    private void OnSaveLocalEndpointsClick(object sender,RoutedEventArgs e)
+    {
+        if(_vm is null) return;
+        try
+        {
+            foreach(var url in new[]{LocalLlmUrl.Text,LocalAsrUrl.Text,LocalTtsUrl.Text})
+                if(!string.IsNullOrWhiteSpace(url))
+                    HAFIZ.Infrastructure.Providers.LocalAiClient.Endpoint(url.Trim(),"models");
+            var s=_vm.Settings;
+            s.LocalLlmBaseUrl=LocalLlmUrl.Text.Trim(); s.LocalLlmModelId=LocalLlmModel.Text.Trim();
+            s.LocalAsrBaseUrl=LocalAsrUrl.Text.Trim(); s.LocalAsrModelId=LocalAsrModel.Text.Trim();
+            s.LocalTtsBaseUrl=LocalTtsUrl.Text.Trim(); s.LocalTtsModelId=LocalTtsModel.Text.Trim();
+            s.LocalTtsVoice=LocalTtsVoice.Text.Trim();
+            _vm.PersistSettings();
+            LocalEndpointStatus.Text=_vm.Localized("تم حفظ الإعدادات، الاتصال لم يتم اختباره بعد.","Saved configuration; connection not yet verified.");
+        }
+        catch(Exception ex){LocalEndpointStatus.Text=ex.Message;}
     }
 
     private void OnSetArabicClick(object sender, RoutedEventArgs e) => _vm?.SetLanguage(UiLanguage.ArabicEgypt);

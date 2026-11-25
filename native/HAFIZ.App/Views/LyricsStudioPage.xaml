@@ -30,11 +30,24 @@
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
 
-                    <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8">
+                    <StackPanel Grid.Row="0" Spacing="6">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <Button x:Name="RecordButton" Click="OnRecordClick" Content="🎤 تسجيل" />
+                            <Button Click="OnClearRecordingClick" Content="استخدام النص المكتوب" />
+                            <Button Click="OnCancelClick" Content="إلغاء" />
+                        </StackPanel>
+                        <ComboBox x:Name="DiacriticsMode" SelectedIndex="0" HorizontalAlignment="Stretch">
+                            <ComboBoxItem Content="تشكيل ذكي بالعامية" Tag="Smart Diacritics" />
+                            <ComboBoxItem Content="Suno Phonetic" Tag="Suno Phonetic" />
+                            <ComboBoxItem Content="نطق مصري متصل" Tag="Connected Egyptian" />
+                            <ComboBoxItem Content="تدقيق" Tag="Proofread" />
+                        </ComboBox>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
                         <Button Click="OnDiacritizeClick" Style="{StaticResource AccentButtonStyle}" Content="تشكيل عامي مصري" />
                         <Button Click="OnRhymeCheckClick" Content="فحص القافية والوزن" />
                         <Button Click="OnRewriteClick" Content="إعادة صياغة" />
                         <Button Click="OnSpeakLyricsClick" Content="🔊 نطق مصري" />
+                        </StackPanel>
                     </StackPanel>
 
                     <TextBox

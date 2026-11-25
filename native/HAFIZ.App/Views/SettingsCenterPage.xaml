@@ -51,6 +51,22 @@
                 </StackPanel>
             </Border>
 
+            <Border Style="{StaticResource HafizCardStyle}">
+                <StackPanel Spacing="8">
+                    <TextBlock FontWeight="SemiBold" Text="Local AI endpoints — محركات حافظ المحلية" />
+                    <TextBlock TextWrapping="Wrap" Text="Loopback OpenAI-compatible API only. Configure the exact server and model IDs; no cloud or automatic external process control." />
+                    <TextBox x:Name="LocalLlmUrl" Header="llama-server URL" />
+                    <TextBox x:Name="LocalLlmModel" Header="LLM model ID (optional for a single model)" />
+                    <TextBox x:Name="LocalAsrUrl" Header="ASR server URL" />
+                    <TextBox x:Name="LocalAsrModel" Header="ASR model ID" />
+                    <TextBox x:Name="LocalTtsUrl" Header="TTS server URL" />
+                    <TextBox x:Name="LocalTtsModel" Header="TTS model ID" />
+                    <TextBox x:Name="LocalTtsVoice" Header="Egyptian TTS voice ID" />
+                    <TextBlock x:Name="LocalEndpointStatus" TextWrapping="Wrap" />
+                    <Button Click="OnSaveLocalEndpointsClick" Content="Save local endpoints / حفظ المحركات المحلية" />
+                </StackPanel>
+            </Border>
+
             <!-- 3. Multi-Drive In-Place Model Scanner (E:, D:, D:\AI\LMStudio-Models\local) -->
             <Border Style="{StaticResource HafizCardStyle}">
                 <StackPanel Spacing="12">
