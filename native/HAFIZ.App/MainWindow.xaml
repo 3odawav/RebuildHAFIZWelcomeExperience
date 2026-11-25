@@ -29,7 +29,7 @@
             </Grid.ColumnDefinitions>
 
             <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                <Ellipse Width="10" Height="10" Fill="{ThemeResource HafizMatrixHaloBrush}" />
+                <Image Source="ms-appx:///Assets/Branding/HAFIZ-logo.png" Width="112" Height="30" Stretch="Uniform" />
                 <TextBlock
                     x:Name="TitleBarBrandText"
                     Text="حافظ بالعامية — HAFIZ In Slang"

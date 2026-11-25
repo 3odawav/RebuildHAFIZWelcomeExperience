@@ -86,6 +86,7 @@ foreach ($Resource in $XamlResources) {
 }
 $RequiredResources = @(
     "HAFIZ.pri", "App.xbf", "MainWindow.xbf",
+    "Assets\Branding\HAFIZ.ico", "Assets\Branding\HAFIZ-logo.png",
     "Themes\ThemeResources.xbf",
     "Controls\FloatingHafizOverlay.xbf", "Controls\LivingHafizAvatarControl.xbf",
     "Views\StartupStagePage.xbf", "Views\LyricsStudioPage.xbf",

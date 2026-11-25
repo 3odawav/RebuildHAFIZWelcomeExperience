@@ -15,6 +15,8 @@ function Resolve-RepoPath([string]$Path) {
 function Assert-HafizPayload([string]$Directory, [string]$Label) {
     $required = @(
         "HAFIZ.exe",
+        "Assets\Branding\HAFIZ.ico",
+        "Assets\Branding\HAFIZ-logo.png",
         "HAFIZ.pri",
         "App.xbf",
         "MainWindow.xbf",

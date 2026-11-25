@@ -6,6 +6,7 @@
     <RootNamespace>HAFIZ.App</RootNamespace>
     <AssemblyName>HAFIZ</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>$(MSBuildThisFileDirectory)..\..\artifacts\branding\HAFIZ.ico</ApplicationIcon>
     <Platforms>x64</Platforms>
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
     <UseWinUI>true</UseWinUI>
@@ -39,4 +40,11 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
+  <ItemGroup>
+    <Content Include="..\..\public\assets\aistudio\image_caee2680.png" Link="Assets\Branding\HAFIZ-logo.png" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="..\..\artifacts\branding\HAFIZ.ico" Link="Assets\Branding\HAFIZ.ico" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+  <Target Name="GenerateHafizBranding" BeforeTargets="PrepareForBuild" Condition="'$(DesignTimeBuild)' != 'true'">
+    <Exec Command="powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)..\..\scripts\generate-branding.ps1&quot;" />
+  </Target>
 </Project>

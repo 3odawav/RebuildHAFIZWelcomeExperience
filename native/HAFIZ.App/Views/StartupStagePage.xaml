@@ -14,7 +14,8 @@
 
         <!-- Center Stage: Transparent Living HAFIZ Avatar + Mood Triggers -->
         <StackPanel Grid.Row="0" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="16">
-            <controls:LivingHafizAvatarControl x:Name="HeroAvatar" AvatarSize="330" />
+            <controls:LivingHafizAvatarControl x:Name="HeroAvatar" AvatarSize="380" />
+            <Image Source="ms-appx:///Assets/Branding/HAFIZ-logo.png" Width="300" Height="72" Stretch="Uniform" />
 
             <TextBlock
                 x:Name="GreetingTitle"

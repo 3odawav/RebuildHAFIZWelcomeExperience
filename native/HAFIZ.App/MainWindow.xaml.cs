@@ -22,6 +22,8 @@ public sealed partial class MainWindow : Window
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
         ConfigureInitialWindowSize();
+        var iconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "Branding", "HAFIZ.ico");
+        if (File.Exists(iconPath)) AppWindow.SetIcon(iconPath);
 
         StartupStage.Bind(_viewModel);
         LyricsView.Bind(_viewModel);

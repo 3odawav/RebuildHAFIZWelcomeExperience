@@ -64,7 +64,7 @@ public sealed partial class LivingHafizAvatarControl : UserControl
     private void OnFrameTick(object? sender, object e)
     {
         var now = DateTimeOffset.UtcNow;
-        var dt = (now - _lastTick).TotalSeconds;
+        var dt = Math.Clamp((now - _lastTick).TotalSeconds, 0, 0.05);
         _lastTick = now;
 
         var frame = _controller.Step(dt);

@@ -11,7 +11,7 @@
 ; ============================================================================
 
 #define MyAppName "HAFIZ In Slang"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "2.0.0"
 #define MyAppPublisher "HAFIZ Studio"
 #define MyAppExeName "HAFIZ.exe"
 #define SourcePublishDir "..\artifacts\win-x64\publish"
@@ -33,7 +33,10 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
-WizardStyle=modern
+WizardStyle=modern dark
+SetupIconFile=..\artifacts\branding\HAFIZ.ico
+WizardImageFile=..\artifacts\branding\WizardPortrait.bmp
+WizardSmallImageFile=..\artifacts\branding\WizardSmall.bmp
 UninstallDisplayIcon={app}\{#MyAppExeName}
 ShowLanguageDialog=yes
 
@@ -66,8 +69,8 @@ Source: "{#SourcePublishDir}\*"; DestDir: "{app}"; Flags: ignoreversion recurses
 Source: "..\backend\*"; DestDir: "{app}\backend"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
-Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\Assets\Branding\HAFIZ.ico"
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\Assets\Branding\HAFIZ.ico"; Tasks: desktopicon
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
